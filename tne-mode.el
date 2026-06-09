@@ -4,7 +4,8 @@
  (define-key m (kbd "C-c C-2 a") #'tne-add-n2-segment)
  (define-key m (kbd "C-c C-3 a") #'tne-add-n3-segment)
  (define-key m (kbd "C-c C-r") #'tne-redraw)
- (define-key m (kbd "C-c C-l") #'tne-layout-report) m))
+ (define-key m (kbd "C-c C-l") #'tne-layout-report)
+ (define-key m (kbd "C-c C-w") #'tne-wrap-report) m))
 (defun tne-redraw () (interactive)
  (let ((inhibit-read-only t))
   (erase-buffer)
@@ -56,6 +57,59 @@
 
     (nreverse result)))
 
+(defun tne-wrap-text (text width)
+  (let ((words (split-string text " "))
+        (lines nil)
+        (current "")
+        (forced-splits 0))
+
+    (while words
+      (let ((word (car words)))
+
+        (cond
+
+         ;; long word on empty line
+         ((and (string= current "")
+               (> (length word) width))
+
+          (push (substring word 0 width) lines)
+
+          (setq words
+                (cons (substring word width)
+                      (cdr words)))
+
+          (setq forced-splits
+                (1+ forced-splits)))
+
+         ;; word fits
+         ((<= (+ (length current)
+                 (if (string= current "") 0 1)
+                 (length word))
+              width)
+
+          (setq current
+                (if (string= current "")
+                    word
+                  (concat current " " word)))
+
+          (setq words (cdr words)))
+
+         ;; wrap
+         (t
+
+          (push current lines)
+          (setq current "")))))
+
+    (unless (string= current "")
+      (push current lines))
+
+    (setq lines (nreverse lines))
+
+    (list
+     :lines lines
+     :height (length lines)
+     :forced-splits forced-splits)))
+
 (defun tne-layout-report ()
   (interactive)
 
@@ -92,6 +146,31 @@
         (plist-get entry :available-width)
         (plist-get entry :minimum-width)
         (plist-get entry :valid))))))
+
+(defun tne-wrap-report ()
+  (interactive)
+
+  (let* ((txt (read-string "Text: "))
+         (width (read-number "Width: "))
+         (result (tne-wrap-text txt width)))
+
+    (with-output-to-temp-buffer "*TNE Wrap*"
+
+      (princ
+       (format
+        "height=%s\n"
+        (plist-get result :height)))
+
+      (princ
+       (format
+        "forced-splits=%s\n\n"
+        (plist-get result :forced-splits)))
+
+      (dolist (line
+               (plist-get result :lines))
+
+        (princ line)
+        (princ "\n")))))
 
 (defun tne-territory-overlap-p (start1 width1 start2 width2)
 (let ((end1 (+ start1 width1 -1))
