@@ -6,13 +6,84 @@
  (define-key m (kbd "C-c C-r") #'tne-redraw)
  (define-key m (kbd "C-c C-l") #'tne-layout-report)
  (define-key m (kbd "C-c C-w") #'tne-wrap-report)
- (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment) m))
+ (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment)
+ (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment)
+ (define-key m (kbd "C-c C-3 d") #'tne-delete-n3-segment)
+ (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
+ (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
+
+(defun tne-edit-segment (n)
+  (let* ((c (read-number "Edit segment at column: "))
+         (segments
+          (if (= n 2)
+              (tne-document-n2-segments tne-current-document)
+            (tne-document-n3-segments tne-current-document)))
+
+         (segment
+          (cl-find-if
+           (lambda (s)
+             (= (tne-segment-start-column s)
+                c))
+           segments)))
+
+    (if segment
+
+        (progn
+
+          (setf (tne-segment-text segment)
+                (read-string
+                 "New text: "
+                 (tne-segment-text segment)))
+
+          (tne-redraw))
+
+      (message "No segment found."))))
+
+(defun tne-edit-n2-segment ()
+  (interactive)
+  (tne-edit-segment 2))
+
+(defun tne-edit-n3-segment ()
+  (interactive)
+  (tne-edit-segment 3))
+
 (defun tne-redraw () (interactive)
  (let ((inhibit-read-only t))
   (erase-buffer)
   (insert (tne-document-narrative-1 tne-current-document) "\n")
   (insert (tne-render-segments (tne-document-n2-segments tne-current-document)) "\n")
   (insert (tne-render-segments (tne-document-n3-segments tne-current-document)) "\n")))
+
+(defun tne-delete-segment (n)
+  (let ((c (read-number "Delete segment at column: ")))
+
+    (if (= n 2)
+
+        (setf (tne-document-n2-segments tne-current-document)
+              (cl-remove-if
+               (lambda (s)
+                 (= (tne-segment-start-column s)
+                    c))
+               (tne-document-n2-segments
+                tne-current-document)))
+
+      (setf (tne-document-n3-segments tne-current-document)
+            (cl-remove-if
+             (lambda (s)
+               (= (tne-segment-start-column s)
+                  c))
+             (tne-document-n3-segments
+              tne-current-document))))
+
+    (tne-redraw)))
+
+(defun tne-delete-n2-segment ()
+  (interactive)
+  (tne-delete-segment 2))
+
+(defun tne-delete-n3-segment ()
+  (interactive)
+  (tne-delete-segment 3))
 
 (defun tne-delete-n2-segment ()
   (interactive)
