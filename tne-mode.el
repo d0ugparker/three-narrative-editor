@@ -5,13 +5,29 @@
  (define-key m (kbd "C-c C-3 a") #'tne-add-n3-segment)
  (define-key m (kbd "C-c C-r") #'tne-redraw)
  (define-key m (kbd "C-c C-l") #'tne-layout-report)
- (define-key m (kbd "C-c C-w") #'tne-wrap-report) m))
+ (define-key m (kbd "C-c C-w") #'tne-wrap-report)
+ (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment) m))
 (defun tne-redraw () (interactive)
  (let ((inhibit-read-only t))
   (erase-buffer)
   (insert (tne-document-narrative-1 tne-current-document) "\n")
   (insert (tne-render-segments (tne-document-n2-segments tne-current-document)) "\n")
   (insert (tne-render-segments (tne-document-n3-segments tne-current-document)) "\n")))
+
+(defun tne-delete-n2-segment ()
+  (interactive)
+
+  (let ((c (read-number "Delete N2 segment at column: ")))
+
+    (setf (tne-document-n2-segments tne-current-document)
+          (cl-remove-if
+           (lambda (s)
+             (= (tne-segment-start-column s)
+                c))
+           (tne-document-n2-segments
+            tne-current-document)))
+
+    (tne-redraw)))
 
 (defun tne-first-word-length (text)
 (length (car (split-string text "[ \t]+" t))))
@@ -129,23 +145,25 @@
 (let ((c (read-number "Start column: "))
 (txt (read-string "Segment text: ")))
 
-(let* ((new-width (tne-minimum-width txt))
-       (collision nil)
+(let* ((collision nil)
        (segments (if (= n 2)
                      (tne-document-n2-segments tne-current-document)
                      (tne-document-n3-segments tne-current-document))))
 
-  (dolist (s segments)
-    (let* ((existing-start
-            (tne-segment-start-column s))
-           (existing-width
-            (tne-minimum-width
-             (tne-segment-text s))))
-
-      (when (tne-territory-overlap-p
-             c new-width
-             existing-start existing-width)
-        (setq collision t))))
+;; V0.2.5 temporary:
+;; allow insertion regardless of width.
+  
+;;  (dolist (s segments)
+;;    (let* ((existing-start
+;;            (tne-segment-start-column s))
+;;           (existing-width
+;;            (tne-minimum-width
+;;             (tne-segment-text s))))
+;;
+;;      (when (tne-territory-overlap-p
+;;             c new-width
+;;             existing-start existing-width)
+;;        (setq collision t))))
 
   (if collision
       (message "Not enough space to add this segment.")
