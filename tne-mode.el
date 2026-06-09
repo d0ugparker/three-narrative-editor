@@ -223,6 +223,15 @@
 
 ;; V0.2.5 temporary:
 ;; allow insertion regardless of width.
+
+;; Historical V0.2.2 territory-collision logic.
+;;
+;; Disabled in V0.2.5 because wrapped rendering changed
+;; the meaning of width.
+;;
+;; Future anchor-overlap implementation may reuse some of
+;; this reasoning, but the current algorithm is no longer
+;; correct and must not be re-enabled as-is.
   
 ;;  (dolist (s segments)
 ;;    (let* ((existing-start
@@ -240,6 +249,7 @@
       (message "Not enough space to add this segment.")
 
     (let ((s (make-tne-segment
+	      :id (tne-generate-segment-id)
               :start-column c
               :text txt)))
 
