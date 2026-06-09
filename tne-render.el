@@ -54,34 +54,95 @@
      :forced-splits forced-splits)))
 
 (defun tne-render-segments (segments)
-(let* ((sorted
-(sort (copy-sequence segments)
-(lambda (a b)
-(< (tne-segment-start-column a)
-(tne-segment-start-column b)))))
-(result "")
-(current-column 1))
+  (let* ((sorted
+          (sort (copy-sequence segments)
+                (lambda (a b)
+                  (< (tne-segment-start-column a)
+                     (tne-segment-start-column b)))))
+         (segment-data nil)
+         (max-height 0))
 
-(dolist (s sorted)
+    ;; Build wrapped rows for every segment.
+    (let ((remaining sorted))
 
-  (let* ((start (tne-segment-start-column s))
-         (text  (tne-segment-text s))
-         (padding (max 0 (- start current-column))))
+      (while remaining
 
-    (setq result
-          (concat result
-                  (make-string padding ?\s)
-                  text))
+        (let* ((s (car remaining))
+               (start (tne-segment-start-column s))
+               (text  (tne-segment-text s))
+               (next  (cadr remaining))
 
-    (setq current-column
-          (+ start (length text))))
+               (width
+                (if next
+                    (- (tne-segment-start-column next)
+                       start)
+                  (- (window-width)
+                     start
+                     -1)))
 
-  (unless (eq s (car (last sorted)))
-    (setq result
-          (concat result " | "))
-    (setq current-column
-          (+ current-column 3))))
+               (wrap-result
+                (tne-wrap-text text width))
 
-result))
+               (rows
+                (plist-get wrap-result :lines)))
+
+          (setq max-height
+                (max max-height
+                     (length rows)))
+
+          (push
+           (list
+            :start start
+            :rows rows)
+           segment-data))
+
+        (setq remaining (cdr remaining))))
+
+    (setq segment-data
+          (nreverse segment-data))
+
+    ;; Build output row-by-row.
+    (let ((output ""))
+
+      (dotimes (row-index max-height)
+
+        (let ((line "")
+              (current-column 1))
+
+          (dolist (segment segment-data)
+
+            (let* ((start
+                    (plist-get segment :start))
+
+                   (rows
+                    (plist-get segment :rows))
+
+                   (row-text
+                    (if (< row-index (length rows))
+                        (nth row-index rows)
+                      ""))
+
+                   (padding
+                    (max 0
+                         (- start current-column))))
+
+              (setq line
+                    (concat line
+                            (make-string padding ?\s)
+                            row-text))
+
+              (setq current-column
+                    (+ start
+                       (length row-text)))))
+
+          (setq output
+                (concat output line))
+
+          (unless (= row-index
+                     (1- max-height))
+            (setq output
+                  (concat output "\n")))))
+
+      output)))
 
 (provide 'tne-render)
