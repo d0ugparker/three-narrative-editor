@@ -3,7 +3,8 @@
 (defvar tne-mode-map (let ((m (make-sparse-keymap)))
  (define-key m (kbd "C-c C-2 a") #'tne-add-n2-segment)
  (define-key m (kbd "C-c C-3 a") #'tne-add-n3-segment)
- (define-key m (kbd "C-c C-r") #'tne-redraw) m))
+ (define-key m (kbd "C-c C-r") #'tne-redraw)
+ (define-key m (kbd "C-c C-l") #'tne-layout-report) m))
 (defun tne-redraw () (interactive)
  (let ((inhibit-read-only t))
   (erase-buffer)
@@ -16,6 +17,81 @@
 
 (defun tne-minimum-width (text)
 (max 10 (tne-first-word-length text)))
+
+(defun tne-compute-layout (segments)
+  (let* ((sorted
+          (sort (copy-sequence segments)
+                (lambda (a b)
+                  (< (tne-segment-start-column a)
+                     (tne-segment-start-column b)))))
+         (result nil))
+
+    (while sorted
+      (let* ((s (car sorted))
+             (start (tne-segment-start-column s))
+             (next (cadr sorted))
+             (available-width
+              (if next
+                  (- (tne-segment-start-column next)
+                     start)
+                (- (window-width)
+                   start
+                   -1))))
+
+        (push
+         (list
+          :segment s
+          :start start
+          :available-width available-width
+          :minimum-width
+          (tne-minimum-width
+           (tne-segment-text s))
+          :valid
+          (>= available-width
+              (tne-minimum-width
+               (tne-segment-text s))))
+         result))
+
+      (setq sorted (cdr sorted)))
+
+    (nreverse result)))
+
+(defun tne-layout-report ()
+  (interactive)
+
+  (with-output-to-temp-buffer "*TNE Layout*"
+
+    (princ "Narrative 2\n")
+    (princ "-----------\n")
+
+    (dolist (entry
+             (tne-compute-layout
+              (tne-document-n2-segments
+               tne-current-document)))
+
+      (princ
+       (format
+        "start=%s width=%s minimum=%s valid=%s\n"
+        (plist-get entry :start)
+        (plist-get entry :available-width)
+        (plist-get entry :minimum-width)
+        (plist-get entry :valid))))
+
+    (princ "\nNarrative 3\n")
+    (princ "-----------\n")
+
+    (dolist (entry
+             (tne-compute-layout
+              (tne-document-n3-segments
+               tne-current-document)))
+
+      (princ
+       (format
+        "start=%s width=%s minimum=%s valid=%s\n"
+        (plist-get entry :start)
+        (plist-get entry :available-width)
+        (plist-get entry :minimum-width)
+        (plist-get entry :valid))))))
 
 (defun tne-territory-overlap-p (start1 width1 start2 width2)
 (let ((end1 (+ start1 width1 -1))
@@ -69,4 +145,12 @@
 (define-derived-mode tne-mode special-mode "TNE"
  (setq tne-current-document (tne-model-create-default))
  (setq buffer-read-only nil)(tne-redraw))
+(defun tne-new-document ()
+  (interactive)
+
+  (switch-to-buffer "*TNE*")
+
+  (erase-buffer)
+
+  (tne-mode))
 (provide 'tne-mode)
