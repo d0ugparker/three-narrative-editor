@@ -86,6 +86,25 @@
                (rows
                 (plist-get wrap-result :lines)))
 
+	  (push
+ (make-tne-layout-record
+  :segment-id
+  (tne-segment-id s)
+
+  :start
+  start
+
+  :width
+  width
+
+  :height
+  (length rows)
+
+  :rows
+  rows)
+
+ tne-layout-records)
+
           (setq max-height
                 (max max-height
                      (length rows)))
@@ -142,6 +161,9 @@
                      (1- max-height))
             (setq output
                   (concat output "\n")))))
+
+      (setq tne-layout-records
+      (nreverse tne-layout-records))
 
       output)))
 

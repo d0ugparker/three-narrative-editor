@@ -12,6 +12,33 @@
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
 
+(defun tne-layout-record-report ()
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Layout Records*"
+
+    (dolist (r tne-layout-records)
+
+      (princ
+       (format
+        "id=%s start=%s width=%s height=%s\n"
+
+        (tne-layout-record-segment-id r)
+        (tne-layout-record-start r)
+        (tne-layout-record-width r)
+        (tne-layout-record-height r)))
+
+      (dolist (row
+               (tne-layout-record-rows r))
+
+        (princ
+         (format
+          "  %s\n"
+          row)))
+
+      (princ "\n"))))
+
 (defun tne-edit-segment (n)
   (let* ((c (read-number "Edit segment at column: "))
          (segments
@@ -34,7 +61,7 @@
                 (read-string
                  "New text: "
                  (tne-segment-text segment)))
-
+	  
           (tne-redraw))
 
       (message "No segment found."))))
@@ -48,7 +75,9 @@
   (tne-edit-segment 3))
 
 (defun tne-redraw () (interactive)
- (let ((inhibit-read-only t))
+  (let ((inhibit-read-only t))
+  (setq tne-layout-records nil)
+
   (erase-buffer)
   (insert (tne-document-narrative-1 tne-current-document) "\n")
   (insert (tne-render-segments (tne-document-n2-segments tne-current-document)) "\n")
