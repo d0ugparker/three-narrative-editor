@@ -60,6 +60,10 @@
            (format "Owner=%s\n"
                    (tne-segment-owner segment)))
 
+	  (princ
+	   (format "Type=%s\n"
+		   (tne-segment-type segment)))
+
           (princ
            (format "Start=%s\n"
                    (tne-segment-start-column segment)))
