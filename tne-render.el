@@ -120,6 +120,9 @@
     (setq segment-data
           (nreverse segment-data))
 
+    (let ((screen-row 1))
+    ;; one extra closing parenthesis
+
     ;; Build output row-by-row.
     (let ((output ""))
 
@@ -156,6 +159,9 @@
 
           (setq output
                 (concat output line))
+
+	  (setq screen-row
+		(1+ screen-row))
 
           (unless (= row-index
                      (1- max-height))

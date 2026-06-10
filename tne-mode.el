@@ -12,6 +12,12 @@
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
 
+(defun tne-show-layout-records ()
+  (interactive)
+
+  (message "%S"
+           tne-layout-records))
+
 (defun tne-layout-record-report ()
   (interactive)
 
