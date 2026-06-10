@@ -450,6 +450,8 @@
     (let ((s (make-tne-segment
 	      :id (tne-generate-segment-id)
 
+	      :type 'segment
+	      
               :owner
 	      (if (= n 2)
 		  'n2
