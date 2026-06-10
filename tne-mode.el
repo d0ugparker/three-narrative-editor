@@ -375,6 +375,13 @@
 
     (let ((s (make-tne-segment
 	      :id (tne-generate-segment-id)
+
+              :owner
+	      (if (= n 2)
+		  'n2
+		'n3)
+
+
               :start-column c
               :text txt)))
 

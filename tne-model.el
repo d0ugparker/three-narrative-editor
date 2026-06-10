@@ -1,5 +1,5 @@
 (require 'cl-lib)
-(cl-defstruct tne-segment id start-column text)
+(cl-defstruct tne-segment id owner start-column text)
 (cl-defstruct tne-document (narrative-1 "") (n2-segments nil) (n3-segments nil))
 (cl-defstruct tne-layout-record segment-id start width height rows screen-row-start screen-row-end)
 (defvar-local tne-current-document nil)
