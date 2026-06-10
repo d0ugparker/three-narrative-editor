@@ -12,6 +12,80 @@
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
 
+(defun tne-find-segment-by-id (id)
+
+  (or
+
+   (seq-find
+    (lambda (s)
+      (= (tne-segment-id s)
+         id))
+    (tne-document-n2-segments
+     tne-current-document))
+
+   (seq-find
+    (lambda (s)
+      (= (tne-segment-id s)
+         id))
+    (tne-document-n3-segments
+     tne-current-document))))
+
+(defun tne-selected-segment-info ()
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message "No segment selected.")
+
+    (let* ((segment
+            (tne-find-segment-by-id
+             tne-selected-segment-id))
+
+           (record
+            (tne-find-layout-record-by-id
+             tne-selected-segment-id)))
+
+      (if (null segment)
+
+          (message "Selected segment not found.")
+
+        (with-output-to-temp-buffer
+            "*TNE Selected Segment*"
+
+          (princ
+           (format "ID=%s\n"
+                   (tne-segment-id segment)))
+
+          (princ
+           (format "Owner=%s\n"
+                   (tne-segment-owner segment)))
+
+          (princ
+           (format "Start=%s\n"
+                   (tne-segment-start-column segment)))
+
+          (princ
+           (format "Text=%s\n\n"
+                   (tne-segment-text segment)))
+
+          (if record
+
+              (progn
+                (princ
+                 (format "Width=%s\n"
+                         (tne-layout-record-width record)))
+
+                (princ
+                 (format "Height=%s\n\n"
+                         (tne-layout-record-height record)))
+
+                (dolist (row
+                         (tne-layout-record-rows record))
+                  (princ row)
+                  (princ "\n")))
+
+            (princ "No layout record found.\n")))))))
+
 (defun tne-show-selected-segment ()
 
   (interactive)
