@@ -121,7 +121,6 @@
           (nreverse segment-data))
 
     (let ((screen-row 1))
-    ;; one extra closing parenthesis
 
     ;; Build output row-by-row.
     (let ((output ""))
@@ -171,6 +170,6 @@
       (setq tne-layout-records
       (nreverse tne-layout-records))
 
-      output)))
+      output))))
 
 (provide 'tne-render)

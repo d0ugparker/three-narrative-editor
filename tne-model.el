@@ -5,6 +5,7 @@
 (defvar-local tne-current-document nil)
 (defvar tne-next-segment-id 1)
 (defvar tne-layout-records nil)
+(defvar tne-selected-segment-id nil)
 (defun tne-model-create-default () (make-tne-document :narrative-1 "Narrative 1"))
 (provide 'tne-model)
 

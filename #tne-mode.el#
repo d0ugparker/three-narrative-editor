@@ -12,6 +12,53 @@
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
 
+(defun tne-selected-segment-info ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (let ((r
+           (tne-find-layout-record-by-id
+            tne-selected-segment-id)))
+
+      (if (null r)
+
+          (message
+           "Selected segment not found.")
+
+        (with-output-to-temp-buffer
+            "*TNE Selected Segment*"
+
+          (princ
+           (format
+            "ID=%s\n"
+            (tne-layout-record-segment-id r)))
+
+          (princ
+           (format
+            "Start=%s\n"
+            (tne-layout-record-start r)))
+
+          (princ
+           (format
+            "Width=%s\n"
+            (tne-layout-record-width r)))
+
+          (princ
+           (format
+            "Height=%s\n\n"
+            (tne-layout-record-height r)))
+
+          (dolist (row
+                   (tne-layout-record-rows r))
+
+            (princ row)
+            (princ "\n")))))))
+
 (defun tne-show-selected-segment ()
 
   (interactive)
