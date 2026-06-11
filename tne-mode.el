@@ -30,6 +30,27 @@
     (tne-document-n3-segments
      tne-current-document))))
 
+(defun tne-find-relationship-by-id (id)
+
+  (seq-find
+   (lambda (r)
+     (= (tne-relationship-id r)
+        id))
+   (tne-document-relationships
+    tne-current-document)))
+
+(defun tne-add-relationship (relationship)
+
+  (setf
+   (tne-document-relationships
+    tne-current-document)
+
+   (cons relationship
+         (tne-document-relationships
+          tne-current-document)))
+
+  relationship)
+
 (defun tne-selected-segment-info ()
   (interactive)
 
@@ -453,15 +474,11 @@
 
     (let ((s (make-tne-segment
 	      :id (tne-generate-segment-id)
-
 	      :type 'segment
-	      
-              :owner
+	      :owner
 	      (if (= n 2)
 		  'n2
 		'n3)
-
-
               :start-column c
               :text txt)))
 
