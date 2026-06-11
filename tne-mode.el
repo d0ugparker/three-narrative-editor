@@ -39,6 +39,73 @@
    (tne-document-relationships
     tne-current-document)))
 
+(defun tne-find-relationships-for-segment (segment-id)
+
+  (seq-filter
+   (lambda (r)
+
+     (or
+      (= (tne-relationship-source-id r)
+         segment-id)
+
+      (= (tne-relationship-target-id r)
+         segment-id)))
+
+   (tne-document-relationships
+    tne-current-document)))
+
+(defun tne-related-segments (segment-id)
+
+  (mapcar
+
+   (lambda (r)
+
+     (if (= (tne-relationship-source-id r)
+            segment-id)
+
+         (tne-find-segment-by-id
+          (tne-relationship-target-id r))
+
+       (tne-find-segment-by-id
+        (tne-relationship-source-id r))))
+
+   (tne-find-relationships-for-segment
+    segment-id)))
+
+(defun tne-related-segment-texts (segment-id)
+
+  (mapcar
+   #'tne-segment-text
+   (tne-related-segments
+    segment-id)))
+
+(defun tne-relationship-types-for-segment (segment-id)
+
+  (mapcar
+   #'tne-relationship-type
+
+   (tne-find-relationships-for-segment
+    segment-id)))
+
+(defun tne-relationship-source-segment (relationship)
+
+  (tne-find-segment-by-id
+   (tne-relationship-source-id
+    relationship)))
+
+(defun tne-relationship-target-segment (relationship)
+
+  (tne-find-segment-by-id
+   (tne-relationship-target-id
+    relationship)))
+
+(defun tne-relationship-valid-p (source-id
+                                 target-id)
+
+  (and
+   (tne-find-segment-by-id source-id)
+   (tne-find-segment-by-id target-id)))
+
 (defun tne-add-relationship (relationship)
 
   (setf
@@ -98,6 +165,50 @@
           type)))
 
     (tne-add-relationship r)))
+
+(defun tne-create-segment-relationship (source-id
+                                        target-id
+                                        type)
+
+  (when
+      (tne-relationship-valid-p
+       source-id
+       target-id)
+
+    (tne-create-relationship
+     source-id
+     target-id
+     type)))
+
+(defun tne-create-relationship-command ()
+
+  (interactive)
+
+  (let ((source-id
+         (read-number
+          "Source segment ID: "))
+
+        (target-id
+         (read-number
+          "Target segment ID: "))
+
+        (type
+         (intern
+          (read-string
+           "Relationship type: "
+           "relates-to"))))
+
+    (if
+        (tne-create-segment-relationship
+         source-id
+         target-id
+         type)
+
+        (message
+         "Relationship created.")
+
+      (message
+       "Relationship creation failed."))))
 
 (defun tne-selected-segment-info ()
   (interactive)
