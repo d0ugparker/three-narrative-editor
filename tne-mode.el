@@ -51,6 +51,54 @@
 
   relationship)
 
+(defun tne-delete-relationship-by-id (id)
+
+  (setf
+   (tne-document-relationships
+    tne-current-document)
+
+   (seq-remove
+    (lambda (r)
+      (= (tne-relationship-id r)
+         id))
+    (tne-document-relationships
+     tne-current-document))))
+
+(defun tne-delete-relationship ()
+
+  (interactive)
+
+  (let ((id
+         (read-number
+          "Relationship ID: ")))
+
+    (tne-delete-relationship-by-id
+     id)
+
+    (message
+     "Relationship %s deleted."
+     id)))
+
+(defun tne-create-relationship (source-id
+                                target-id
+                                type)
+
+  (let ((r
+         (make-tne-relationship
+          :id
+          (tne-generate-relationship-id)
+
+          :source-id
+          source-id
+
+          :target-id
+          target-id
+
+          :type
+          type)))
+
+    (tne-add-relationship r)))
+
 (defun tne-selected-segment-info ()
   (interactive)
 
@@ -187,6 +235,63 @@
 
           (princ row)
           (princ "\n"))))))
+
+(defun tne-relationship-info ()
+
+  (interactive)
+
+  (let* ((id
+          (read-number "Relationship ID: "))
+
+         (r
+          (tne-find-relationship-by-id id)))
+
+    (if (null r)
+
+        (message "Relationship not found.")
+
+      (with-output-to-temp-buffer
+          "*TNE Relationship Info*"
+
+        (princ
+         (format
+          "ID=%s\n"
+          (tne-relationship-id r)))
+
+        (princ
+         (format
+          "Source=%s\n"
+          (tne-relationship-source-id r)))
+
+        (princ
+         (format
+          "Target=%s\n"
+          (tne-relationship-target-id r)))
+
+        (princ
+         (format
+          "Type=%s\n"
+          (tne-relationship-type r)))))))
+
+(defun tne-list-relationships ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Relationships*"
+
+    (dolist (r
+             (tne-document-relationships
+              tne-current-document))
+
+      (princ
+       (format
+        "ID=%s  Source=%s  Target=%s  Type=%s\n"
+
+        (tne-relationship-id r)
+        (tne-relationship-source-id r)
+        (tne-relationship-target-id r)
+        (tne-relationship-type r))))))
 
 (defun tne-find-layout-record-by-id (id)
 
