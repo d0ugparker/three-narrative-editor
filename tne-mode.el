@@ -87,6 +87,118 @@
    (tne-find-relationships-for-segment
     segment-id)))
 
+(defun tne-relationship-summary-for-segment (segment-id)
+
+  (mapcar
+
+   (lambda (r)
+
+     (let ((other
+
+            (if (= (tne-relationship-source-id r)
+                   segment-id)
+
+                (tne-find-segment-by-id
+                 (tne-relationship-target-id r))
+
+              (tne-find-segment-by-id
+               (tne-relationship-source-id r)))))
+
+       (list
+
+        (tne-relationship-type r)
+
+        (tne-segment-text other))))
+
+   (tne-find-relationships-for-segment
+    segment-id)))
+
+(defun tne-show-relationship-summary ()
+
+  (interactive)
+
+  (let ((id
+         (read-number
+          "Segment ID: ")))
+
+    (with-output-to-temp-buffer
+        "*TNE Relationships*"
+
+      (dolist (item
+               (tne-relationship-summary-for-segment
+                id))
+
+        (princ
+         (format
+          "%s -> %s\n"
+
+          (car item)
+          (cadr item)))))))
+
+(defun tne-show-selected-segment-relationships ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (with-output-to-temp-buffer
+        "*TNE Relationships*"
+
+      (dolist (item
+               (tne-relationship-summary-for-segment
+                tne-selected-segment-id))
+
+        (princ
+         (format
+          "%s -> %s\n"
+
+          (car item)
+          (cadr item)))))))
+
+(defun tne-show-selected-segment-relationship-ids ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (with-output-to-temp-buffer
+        "*TNE Relationship IDs*"
+
+      (dolist (r
+               (tne-find-relationships-for-segment
+                tne-selected-segment-id))
+
+        (princ
+         (format
+          "Relationship ID=%s\n"
+          (tne-relationship-id r)))))))
+
+(defun tne-delete-selected-segment-relationship ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (let ((id
+           (read-number
+            "Relationship ID: ")))
+
+      (tne-delete-relationship-by-id
+       id)
+
+      (message
+       "Relationship %s deleted."
+       id))))
+
 (defun tne-relationship-source-segment (relationship)
 
   (tne-find-segment-by-id
@@ -209,6 +321,37 @@
 
       (message
        "Relationship creation failed."))))
+
+(defun tne-relate-selected-segment ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (let ((target-id
+           (read-number
+            "Target segment ID: "))
+
+          (type
+           (intern
+            (read-string
+             "Relationship type: "
+             "relates-to"))))
+
+      (if
+          (tne-create-segment-relationship
+           tne-selected-segment-id
+           target-id
+           type)
+
+          (message
+           "Relationship created.")
+
+        (message
+         "Relationship creation failed.")))))
 
 (defun tne-selected-segment-info ()
   (interactive)
