@@ -179,6 +179,69 @@
           "Relationship ID=%s\n"
           (tne-relationship-id r)))))))
 
+(defun tne-show-relationship-types ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Relationship Types*"
+
+    (dolist (type
+             tne-relationship-types)
+
+      (princ
+       (format "%s\n"
+               type)))))
+
+(defun tne-add-relationship-type ()
+
+  (interactive)
+
+  (let ((type
+         (intern
+          (read-string
+           "New relationship type: "))))
+
+    (unless
+        (memq type
+              tne-relationship-types)
+
+      (setq tne-relationship-types
+            (append
+             tne-relationship-types
+             (list type))))
+
+    (message
+     "Relationship type added: %s"
+     type)))
+
+(defun tne-remove-relationship-type ()
+
+  (interactive)
+
+  (let* ((type-name
+          (read-string
+           "Relationship type to remove: "))
+
+         (type
+          (intern type-name)))
+
+    (if (memq type
+              tne-relationship-types)
+
+        (progn
+
+          (setq tne-relationship-types
+                (delete type
+                        tne-relationship-types))
+
+          (message
+           "Relationship type removed: %s"
+           type))
+
+      (message
+       "Relationship type not found."))))
+
 (defun tne-delete-selected-segment-relationship ()
 
   (interactive)
@@ -470,10 +533,14 @@
             "Target segment ID: "))
 
           (type
-           (intern
-            (read-string
-             "Relationship type: "
-             "relates-to"))))
+	   (intern
+	    (completing-read
+	     "Relationship type: "
+	     (mapcar
+	      #'symbol-name
+	      tne-relationship-types)
+	     nil
+	     t))))
 
       (if
           (tne-create-segment-relationship
