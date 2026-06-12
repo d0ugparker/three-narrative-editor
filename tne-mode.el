@@ -627,6 +627,180 @@
     (message
      "No segment selected.")))
 
+(defun tne-show-range-a ()
+
+  (interactive)
+
+  (if (null tne-range-a)
+
+      (message
+       "Range A is not set.")
+
+    (with-output-to-temp-buffer
+        "*TNE Range A*"
+
+      (princ
+       (format
+        "Owner=%s\n"
+        (tne-range-owner
+         tne-range-a)))
+
+      (princ
+       (format
+        "Start=%s\n"
+        (tne-range-start
+         tne-range-a)))
+
+      (princ
+       (format
+        "End=%s\n"
+        (tne-range-end
+         tne-range-a))))))
+
+(defun tne-show-range-b ()
+
+  (interactive)
+
+  (if (null tne-range-b)
+
+      (message
+       "Range B is not set.")
+
+    (with-output-to-temp-buffer
+        "*TNE Range B*"
+
+      (princ
+       (format
+        "Owner=%s\n"
+        (tne-range-owner
+         tne-range-b)))
+
+      (princ
+       (format
+        "Start=%s\n"
+        (tne-range-start
+         tne-range-b)))
+
+      (princ
+       (format
+        "End=%s\n"
+        (tne-range-end
+         tne-range-b))))))
+
+(defun tne-clear-range-a ()
+
+  (interactive)
+
+  (setq tne-range-a nil)
+
+  (message
+   "Range A cleared."))
+
+(defun tne-clear-range-b ()
+
+  (interactive)
+
+  (setq tne-range-b nil)
+
+  (message
+   "Range B cleared."))
+
+(defun tne-show-ranges ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Ranges*"
+
+    (princ "Range A\n")
+    (princ "-------\n")
+
+    (if tne-range-a
+
+        (progn
+
+          (princ
+           (format
+            "Owner=%s\n"
+            (tne-range-owner
+             tne-range-a)))
+
+          (princ
+           (format
+            "Start=%s\n"
+            (tne-range-start
+             tne-range-a)))
+
+          (princ
+           (format
+            "End=%s\n\n"
+            (tne-range-end
+             tne-range-a))))
+
+      (princ
+       "Not set.\n\n"))
+
+    (princ "Range B\n")
+    (princ "-------\n")
+
+    (if tne-range-b
+
+        (progn
+
+          (princ
+           (format
+            "Owner=%s\n"
+            (tne-range-owner
+             tne-range-b)))
+
+          (princ
+           (format
+            "Start=%s\n"
+            (tne-range-start
+             tne-range-b)))
+
+          (princ
+           (format
+            "End=%s\n"
+            (tne-range-end
+             tne-range-b))))
+
+      (princ
+       "Not set.\n"))))
+
+(defun tne-ranges-ready-p ()
+
+  (and tne-range-a
+       tne-range-b))
+
+(defun tne-show-range-status ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Range Status*"
+
+    (princ
+     (format
+      "Range A: %s\n"
+      (if tne-range-a
+          "set"
+        "not set")))
+
+    (princ
+     (format
+      "Range B: %s\n"
+      (if tne-range-b
+          "set"
+        "not set")))
+
+    (princ
+     (format
+      "Ready for linking: %s\n"
+      (if (tne-ranges-ready-p)
+          "yes"
+        "no")))))
+
 (defun tne-select-segment ()
 
   (interactive)

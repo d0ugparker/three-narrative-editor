@@ -12,10 +12,11 @@
 (defvar tne-next-relationship-id 1)
 (defvar tne-layout-records nil)
 (defvar tne-selected-segment-id nil)
+(cl-defstruct tne-range owner start end)
+(defvar tne-range-a nil)
+(defvar tne-range-b nil)
 (defvar tne-relationship-types
-  '(relates-to
-    supports
-    contradicts))
+  '(relates-to supports contradicts))
 (defun tne-generate-segment-id ()
   (prog1 tne-next-segment-id
     (setq tne-next-segment-id
