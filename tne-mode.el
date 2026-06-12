@@ -773,6 +773,25 @@
   (and tne-range-a
        tne-range-b))
 
+(defun tne-ranges-same-owner-p ()
+
+  (and tne-range-a
+       tne-range-b
+
+       (eq
+        (tne-range-owner tne-range-a)
+        (tne-range-owner tne-range-b))))
+
+(defun tne-ranges-different-owners-p ()
+
+  (and tne-range-a
+       tne-range-b
+
+       (not
+        (eq
+         (tne-range-owner tne-range-a)
+         (tne-range-owner tne-range-b)))))
+
 (defun tne-show-range-status ()
 
   (interactive)
@@ -780,26 +799,43 @@
   (with-output-to-temp-buffer
       "*TNE Range Status*"
 
-    (princ
-     (format
-      "Range A: %s\n"
-      (if tne-range-a
-          "set"
-        "not set")))
+    (with-output-to-temp-buffer
+    "*TNE Range Status*"
 
-    (princ
-     (format
-      "Range B: %s\n"
-      (if tne-range-b
-          "set"
-        "not set")))
+  (princ
+   (format
+    "Range A: %s\n"
+    (if tne-range-a
+        "set"
+      "not set")))
 
-    (princ
-     (format
-      "Ready for linking: %s\n"
-      (if (tne-ranges-ready-p)
-          "yes"
-        "no")))))
+  (princ
+   (format
+    "Range B: %s\n"
+    (if tne-range-b
+        "set"
+      "not set")))
+
+  (princ
+   (format
+    "Ready for linking: %s\n"
+    (if (tne-ranges-ready-p)
+        "yes"
+      "no")))
+
+  (princ
+   (format
+    "Same owner: %s\n"
+    (if (tne-ranges-same-owner-p)
+        "yes"
+      "no")))
+
+  (princ
+   (format
+    "Different owners: %s\n"
+    (if (tne-ranges-different-owners-p)
+        "yes"
+      "no"))))))
 
 (defun tne-select-segment ()
 
