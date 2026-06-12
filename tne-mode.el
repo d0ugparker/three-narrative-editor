@@ -199,6 +199,140 @@
        "Relationship %s deleted."
        id))))
 
+(defun tne-change-relationship-type ()
+
+  (interactive)
+
+  (let ((id
+         (read-number
+          "Relationship ID: "))
+
+        (new-type
+         (intern
+          (read-string
+           "New relationship type: "))))
+
+    (let ((r
+           (tne-find-relationship-by-id
+            id)))
+
+      (if (null r)
+
+          (message
+           "Relationship not found.")
+
+        (setf
+         (tne-relationship-type r)
+         new-type)
+
+        (message
+         "Relationship updated.")))))
+
+(defun tne-show-selected-segment-relationship-info ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (let ((id
+           (read-number
+            "Relationship ID: ")))
+
+      (let ((r
+             (tne-find-relationship-by-id
+              id)))
+
+        (if (null r)
+
+            (message
+             "Relationship not found.")
+
+          (with-output-to-temp-buffer
+              "*TNE Relationship Info*"
+
+            (princ
+             (format
+              "ID=%s\n"
+              (tne-relationship-id r)))
+
+            (princ
+             (format
+              "Source=%s\n"
+              (tne-relationship-source-id r)))
+
+            (princ
+             (format
+              "Target=%s\n"
+              (tne-relationship-target-id r)))
+
+	    (let ((source
+       (tne-find-segment-by-id
+        (tne-relationship-source-id r)))
+
+      (target
+       (tne-find-segment-by-id
+        (tne-relationship-target-id r))))
+
+  (when source
+
+    (princ
+     (format
+      "Source Text=%s\n"
+      (tne-segment-text source))))
+
+  (when target
+
+    (princ
+     (format
+      "Target Text=%s\n"
+      (tne-segment-text target)))))
+
+            (princ
+             (format
+              "Type=%s\n"
+              (tne-relationship-type r)))))))))
+
+(defun tne-show-related-segments ()
+
+  (interactive)
+
+  (if (null tne-selected-segment-id)
+
+      (message
+       "No segment selected.")
+
+    (with-output-to-temp-buffer
+        "*TNE Related Segments*"
+
+      (dolist
+          (s
+           (tne-related-segments
+            tne-selected-segment-id))
+
+        (princ
+         (format
+          "ID=%s\n"
+          (tne-segment-id s)))
+
+        (princ
+         (format
+          "Owner=%s\n"
+          (tne-segment-owner s)))
+
+        (princ
+         (format
+          "Type=%s\n"
+          (tne-segment-type s)))
+
+        (princ
+         (format
+          "Text=%s\n\n"
+          (tne-segment-text s)))))))
+
+
 (defun tne-relationship-source-segment (relationship)
 
   (tne-find-segment-by-id
