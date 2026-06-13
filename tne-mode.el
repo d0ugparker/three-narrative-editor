@@ -12,6 +12,95 @@
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
 
+(defun tne-show-document-info ()
+  (interactive)
+
+  (if (null tne-current-document)
+
+      (message "No current document.")
+
+    (with-output-to-temp-buffer "*TNE Document Info*"
+
+      (princ
+       (format "DID=%s\n\n"
+               (tne-document-id
+                tne-current-document)))
+
+      (princ "N2 Segments\n")
+      (princ "-----------\n")
+
+      (if (null (tne-document-n2-segments
+                 tne-current-document))
+
+          (princ "(none)\n")
+
+        (dolist (s
+                 (tne-document-n2-segments
+                  tne-current-document))
+
+          (princ
+           (format
+            "SID=%s  Start=%s  Text=\"%s\"\n"
+            (tne-segment-id s)
+            (tne-segment-start-column s)
+            (tne-segment-text s)))))
+
+      (princ "\n")
+
+      (princ "N3 Segments\n")
+      (princ "-----------\n")
+
+      (if (null (tne-document-n3-segments
+                 tne-current-document))
+
+          (princ "(none)\n")
+
+        (dolist (s
+                 (tne-document-n3-segments
+                  tne-current-document))
+
+          (princ
+           (format
+            "SID=%s  Start=%s  Text=\"%s\"\n"
+            (tne-segment-id s)
+            (tne-segment-start-column s)
+            (tne-segment-text s)))))
+
+      (princ "\n")
+
+      (princ "Relationships\n")
+      (princ "-------------\n")
+
+      (if (null (tne-document-relationships
+                 tne-current-document))
+
+          (princ "(none)\n")
+
+        (dolist (r
+                 (tne-document-relationships
+                  tne-current-document))
+
+          (princ
+           (format
+            "RID=%s  SID=%s ↔ SID=%s  Type=%s\n"
+            (tne-relationship-id r)
+            (tne-relationship-segment-a-id r)
+            (tne-relationship-segment-b-id r)
+            (tne-relationship-type r)))))
+
+      (princ "\n")
+
+      (princ
+       (format
+        "Current Pair: SID=%s ↔ SID=%s\n"
+        tne-current-pair-a-segment-id
+        tne-current-pair-b-segment-id))
+
+      (princ
+       (format
+        "Pair History Count=%s\n"
+        (length tne-pair-history))))))
+
 (defun tne-find-segment-by-id (id)
 
   (or
@@ -792,6 +881,319 @@
          (tne-range-owner tne-range-a)
          (tne-range-owner tne-range-b)))))
 
+(defun tne-range-a-to-segment ()
+
+  (interactive)
+
+  (if (null tne-range-a)
+
+      (message
+       "Range A is not set.")
+
+    (let ((s
+           (make-tne-segment
+            :id (tne-generate-segment-id)
+            :type 'segment
+            :owner
+            (tne-range-owner
+             tne-range-a)
+
+            :start-column
+            (tne-range-start
+             tne-range-a)
+
+            :text
+	    (format
+	     "[RANGE-A %s:%s-%s]"
+
+	     (tne-range-owner
+	      tne-range-a)
+
+	     (tne-range-start
+	      tne-range-a)
+
+	     (tne-range-end
+	      tne-range-a)))))
+
+      (setq tne-range-a-segment-id
+      (tne-segment-id s))
+
+      (if (eq
+           (tne-segment-owner s)
+           'n2)
+
+          (setf
+           (tne-document-n2-segments
+            tne-current-document)
+
+           (cons
+            s
+            (tne-document-n2-segments
+             tne-current-document)))
+
+        (setf
+         (tne-document-n3-segments
+          tne-current-document)
+
+         (cons
+          s
+          (tne-document-n3-segments
+           tne-current-document))))
+
+      (message
+       "Segment %s created from Range A."
+       (tne-segment-id s)))))
+
+(defun tne-range-b-to-segment ()
+
+  (interactive)
+
+  (if (null tne-range-b)
+
+      (message
+       "Range B is not set.")
+
+    (let ((s
+           (make-tne-segment
+            :id (tne-generate-segment-id)
+            :type 'segment
+            :owner
+            (tne-range-owner
+             tne-range-b)
+
+            :start-column
+            (tne-range-start
+             tne-range-b)
+
+            :text
+            (format
+             "[RANGE-B %s:%s-%s]"
+
+             (tne-range-owner
+              tne-range-b)
+
+             (tne-range-start
+              tne-range-b)
+
+             (tne-range-end
+              tne-range-b)))))
+
+      (setq tne-range-b-segment-id
+      (tne-segment-id s))
+
+      (if (eq
+           (tne-segment-owner s)
+           'n2)
+
+          (setf
+           (tne-document-n2-segments
+            tne-current-document)
+
+           (cons
+            s
+            (tne-document-n2-segments
+             tne-current-document)))
+
+        (setf
+         (tne-document-n3-segments
+          tne-current-document)
+
+         (cons
+          s
+          (tne-document-n3-segments
+           tne-current-document))))
+
+      (message
+       "Segment %s created from Range B."
+       (tne-segment-id s)))))
+
+(defun tne-show-range-segment-ids ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Range Segment IDs*"
+
+    (princ
+     (format
+      "Range A Segment ID=%s\n"
+      tne-range-a-segment-id))
+
+    (princ
+     (format
+      "Range B Segment ID=%s\n"
+      tne-range-b-segment-id))))
+
+(defun tne-relate-range-segments ()
+
+  (interactive)
+
+  (if (or (null tne-range-a-segment-id)
+          (null tne-range-b-segment-id))
+
+      (message
+       "Range segment IDs are not available.")
+
+    (let ((type
+           (intern
+            (completing-read
+             "Relationship type: "
+             (mapcar
+              #'symbol-name
+              tne-relationship-types)
+             nil
+             t))))
+
+      (let ((r
+	     (tne-create-relationship
+              tne-range-a-segment-id
+              tne-range-b-segment-id
+              type)))
+
+	(setq tne-current-pair-a-segment-id
+              tne-range-a-segment-id)
+
+	(setq tne-current-pair-b-segment-id
+              tne-range-b-segment-id)
+
+	(setq tne-pair-history
+
+              (cons
+
+               (make-tne-pair-history-entry
+
+		:pair-a-segment-id
+		tne-range-a-segment-id
+
+		:pair-b-segment-id
+		tne-range-b-segment-id
+
+		:relationship-id
+		(tne-relationship-id r)
+
+		:relationship-type
+		type
+
+		:document-id
+		(tne-document-id
+		 tne-current-document)
+
+		:timestamp
+		(current-time-string))
+
+               tne-pair-history))
+
+	(message
+	 "Relationship created."))
+
+      (setq tne-current-pair-a-segment-id
+      tne-range-a-segment-id)
+
+      (setq tne-current-pair-b-segment-id
+      tne-range-b-segment-id)
+
+      (message
+       "Relationship created."))))
+
+(defun tne-show-pair-history ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Pair History*"
+
+    (if (null tne-pair-history)
+
+        (princ
+         "No pair history.\n")
+
+      (dolist (h tne-pair-history)
+
+        (princ
+         (format
+          "A=%s  B=%s  Rel=%s  Type=%s\n"
+          (tne-pair-history-entry-pair-a-segment-id h)
+          (tne-pair-history-entry-pair-b-segment-id h)
+          (tne-pair-history-entry-relationship-id h)
+          (tne-pair-history-entry-relationship-type h)))
+
+        (princ
+         (format
+          "Time=%s\n\n"
+          (tne-pair-history-entry-timestamp h)))))))
+
+(defun tne-clear-ranges ()
+
+  (interactive)
+
+  (setq tne-range-a nil)
+
+  (setq tne-range-b nil)
+
+  (message
+   "Ranges cleared."))
+
+(defun tne-range-summary ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Range Summary*"
+
+    (if tne-range-a
+
+        (princ
+         (format
+          "A: %s %s-%s\n"
+
+          (tne-range-owner
+           tne-range-a)
+
+          (tne-range-start
+           tne-range-a)
+
+          (tne-range-end
+           tne-range-a)))
+
+      (princ
+       "A: not set\n"))
+
+    (if tne-range-b
+
+        (princ
+         (format
+          "B: %s %s-%s\n"
+
+          (tne-range-owner
+           tne-range-b)
+
+          (tne-range-start
+           tne-range-b)
+
+          (tne-range-end
+           tne-range-b)))
+
+      (princ
+       "B: not set\n"))))
+
+(defun tne-ranges-to-segments ()
+
+  (interactive)
+
+  (if (not (tne-ranges-ready-p))
+
+      (message
+       "Both ranges must be set.")
+
+    (progn
+
+      (tne-range-a-to-segment)
+
+      (tne-range-b-to-segment)
+
+      (message
+       "Segments created from both ranges."))))
+
 (defun tne-show-range-status ()
 
   (interactive)
@@ -845,7 +1247,7 @@
          (read-number
           "Segment ID: ")))
 
-    (if (tne-find-layout-record-by-id id)
+    (if (tne-find-segment-by-id id)
 
         (progn
 
