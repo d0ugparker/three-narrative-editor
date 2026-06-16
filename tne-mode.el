@@ -1,3 +1,42 @@
+;;; TNE Architectural Direction
+;;;
+;;; TNE is evolving toward a range-centric relationship editor.
+;;;
+;;; The primary user interaction model is:
+;;;
+;;;     Awareness
+;;;         ↓
+;;;       Range
+;;;         ↓
+;;;      Segment
+;;;         ↓
+;;;   Relationship
+;;;         ↓
+;;;      History
+;;;
+;;; Segments and relationships are persistent.
+;;;
+;;; Ranges are temporary.
+;;;
+;;; The user ultimately interacts through typing,
+;;; selection, and mouse operations rather than
+;;; direct command invocation.
+;;;
+;;; Some SID-based (segment ID) relationship functions remain
+;;; from earlier development stages and may be
+;;; retained for debugging, inspection, or
+;;; compatibility purposes.
+;;;
+;;;DID document ID, SID segment ID, RID range ID
+
+;;; Current development direction:
+;;;
+;;; Range-based relationship creation is the
+;;; preferred architecture.
+;;;
+;;; SID-based relationship creation predates
+;;; the range subsystem.
+
 (add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
 (require 'tne-model)(require 'tne-render)
 (defvar tne-mode-map (let ((m (make-sparse-keymap)))
