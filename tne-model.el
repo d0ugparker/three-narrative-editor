@@ -56,6 +56,7 @@
 (cl-defstruct tne-document
   id
   (narrative-1 "")
+  (n1-segments nil)
   (n2-segments nil)
   (n3-segments nil)
   (relationships nil))
@@ -85,7 +86,8 @@
 (cl-defstruct tne-range
   owner
   start
-  end)
+  end
+  text)
 
 (defvar tne-range-a nil)
 (defvar tne-range-b nil)

@@ -38,7 +38,9 @@
 ;;; the range subsystem.
 
 (add-to-list 'load-path (file-name-directory (or load-file-name buffer-file-name)))
-(require 'tne-model)(require 'tne-render)
+(require 'seq)
+(require 'tne-model)
+(require 'tne-render)
 (defvar tne-mode-map (let ((m (make-sparse-keymap)))
  (define-key m (kbd "C-c C-2 a") #'tne-add-n2-segment)
  (define-key m (kbd "C-c C-3 a") #'tne-add-n3-segment)
@@ -49,7 +51,13 @@
  (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment)
  (define-key m (kbd "C-c C-3 d") #'tne-delete-n3-segment)
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
- (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment) m))
+ (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment)
+ (define-key m (kbd "C-c C-a m") #'tne-set-range-a-manual)
+ (define-key m (kbd "C-c C-b m") #'tne-set-range-b-manual)
+ (define-key m (kbd "C-c C-a r") #'tne-set-range-a-from-region)
+ (define-key m (kbd "C-c C-b r") #'tne-set-range-b-from-region)
+ (define-key m (kbd "C-c C-s") #'tne-show-range-status)
+ m))
 
 (defun tne-show-document-info ()
   (interactive)
@@ -64,6 +72,27 @@
        (format "DID=%s\n\n"
                (tne-document-id
                 tne-current-document)))
+
+      (princ "N1 Range Segments\n")
+      (princ "-----------------\n")
+
+      (if (null (tne-document-n1-segments
+                 tne-current-document))
+
+          (princ "(none)\n")
+
+        (dolist (s
+                 (tne-document-n1-segments
+                  tne-current-document))
+
+          (princ
+           (format
+            "SID=%s  Start=%s  Text=\"%s\"\n"
+            (tne-segment-id s)
+            (tne-segment-start-column s)
+            (tne-segment-text s)))))
+
+      (princ "\n")
 
       (princ "N2 Segments\n")
       (princ "-----------\n")
@@ -121,10 +150,10 @@
 
           (princ
            (format
-            "RID=%s  SID=%s ↔ SID=%s  Type=%s\n"
+            "RID=%s  Source SID=%s ↔ Target SID=%s  Type=%s\n"
             (tne-relationship-id r)
-            (tne-relationship-segment-a-id r)
-            (tne-relationship-segment-b-id r)
+            (tne-relationship-source-id r)
+            (tne-relationship-target-id r)
             (tne-relationship-type r)))))
 
       (princ "\n")
@@ -143,6 +172,13 @@
 (defun tne-find-segment-by-id (id)
 
   (or
+
+   (seq-find
+    (lambda (s)
+      (= (tne-segment-id s)
+         id))
+    (tne-document-n1-segments
+     tne-current-document))
 
    (seq-find
     (lambda (s)
@@ -755,6 +791,164 @@
     (message
      "No segment selected.")))
 
+
+(defun tne-range-valid-owner-p (owner)
+  (memq owner '(n1 n2 n3)))
+
+(defun tne-normalize-range-owner (owner)
+  (cond
+   ((symbolp owner) owner)
+   ((stringp owner) (intern (downcase owner)))
+   (t owner)))
+
+(defun tne-read-range-owner ()
+  (intern
+   (completing-read
+    "Owner: "
+    '("n1" "n2" "n3")
+    nil
+    t)))
+
+(defun tne-normalize-range-boundaries (start end)
+  (let ((a (min start end))
+        (b (max start end)))
+    (cons a b)))
+
+(defun tne-make-range-checked (owner start end &optional text)
+  (let* ((normalized-owner
+          (tne-normalize-range-owner owner))
+         (bounds
+          (tne-normalize-range-boundaries start end))
+         (range-start
+          (car bounds))
+         (range-end
+          (cdr bounds)))
+
+    (unless (tne-range-valid-owner-p normalized-owner)
+      (error "Invalid range owner: %s" owner))
+
+    (unless (and (integerp range-start)
+                 (integerp range-end)
+                 (>= range-start 1)
+                 (>= range-end range-start))
+      (error "Invalid range boundaries: %s-%s" start end))
+
+    (make-tne-range
+     :owner normalized-owner
+     :start range-start
+     :end range-end
+     :text text)))
+
+(defun tne-set-range-a (owner start end &optional text)
+  (setq tne-range-a
+        (tne-make-range-checked owner start end text))
+  (setq tne-range-a-segment-id nil)
+  (message "Range A set: %s %s-%s"
+           (tne-range-owner tne-range-a)
+           (tne-range-start tne-range-a)
+           (tne-range-end tne-range-a)))
+
+(defun tne-set-range-b (owner start end &optional text)
+  (setq tne-range-b
+        (tne-make-range-checked owner start end text))
+  (setq tne-range-b-segment-id nil)
+  (message "Range B set: %s %s-%s"
+           (tne-range-owner tne-range-b)
+           (tne-range-start tne-range-b)
+           (tne-range-end tne-range-b)))
+
+(defun tne-set-range-a-manual ()
+  (interactive)
+  (let ((owner (tne-read-range-owner))
+        (start (read-number "Start column: "))
+        (end (read-number "End column: "))
+        (text (read-string "Selected text placeholder: ")))
+    (tne-set-range-a owner start end text)))
+
+(defun tne-set-range-b-manual ()
+  (interactive)
+  (let ((owner (tne-read-range-owner))
+        (start (read-number "Start column: "))
+        (end (read-number "End column: "))
+        (text (read-string "Selected text placeholder: ")))
+    (tne-set-range-b owner start end text)))
+
+(defun tne-owner-at-buffer-line (line-number)
+  (cond
+   ((= line-number 1) 'n1)
+   ((= line-number 2) 'n2)
+   ((= line-number 3) 'n3)
+   (t nil)))
+
+(defun tne-region-to-range-data ()
+  (unless (use-region-p)
+    (error "No active region."))
+
+  (let* ((beg (region-beginning))
+         (end (region-end))
+         (beg-line
+          (line-number-at-pos beg))
+         (end-line
+          (line-number-at-pos end))
+         (owner
+          (tne-owner-at-buffer-line beg-line)))
+
+    (unless (= beg-line end-line)
+      (error "Range selection must be on one rendered line for now."))
+
+    (unless owner
+      (error "Only rendered lines 1, 2, and 3 map to n1, n2, and n3 for now."))
+
+    (save-excursion
+      (goto-char beg)
+      (let ((start-column
+             (1+ (current-column)))
+            (text
+             (buffer-substring-no-properties beg end)))
+        (goto-char end)
+        (let ((end-column
+               (max start-column (current-column))))
+          (list owner start-column end-column text))))))
+
+(defun tne-set-range-a-from-region ()
+  (interactive)
+  (pcase-let ((`(,owner ,start ,end ,text)
+               (tne-region-to-range-data)))
+    (tne-set-range-a owner start end text)))
+
+(defun tne-set-range-b-from-region ()
+  (interactive)
+  (pcase-let ((`(,owner ,start ,end ,text)
+               (tne-region-to-range-data)))
+    (tne-set-range-b owner start end text)))
+
+(defun tne-range-display-text (range label)
+  (or (tne-range-text range)
+      (format "[%s %s:%s-%s]"
+              label
+              (tne-range-owner range)
+              (tne-range-start range)
+              (tne-range-end range))))
+
+(defun tne-add-segment-to-document (segment)
+  (pcase (tne-segment-owner segment)
+    ('n1
+     (setf (tne-document-n1-segments tne-current-document)
+           (cons segment
+                 (tne-document-n1-segments tne-current-document))))
+    ('n2
+     (setf (tne-document-n2-segments tne-current-document)
+           (cons segment
+                 (tne-document-n2-segments tne-current-document))))
+    ('n3
+     (setf (tne-document-n3-segments tne-current-document)
+           (cons segment
+                 (tne-document-n3-segments tne-current-document))))
+    (_
+     (error "Invalid segment owner: %s"
+            (tne-segment-owner segment))))
+  segment)
+
 (defun tne-show-range-a ()
 
   (interactive)
@@ -932,52 +1126,18 @@
     (let ((s
            (make-tne-segment
             :id (tne-generate-segment-id)
-            :type 'segment
-            :owner
-            (tne-range-owner
-             tne-range-a)
-
-            :start-column
-            (tne-range-start
-             tne-range-a)
-
-            :text
-	    (format
-	     "[RANGE-A %s:%s-%s]"
-
-	     (tne-range-owner
-	      tne-range-a)
-
-	     (tne-range-start
-	      tne-range-a)
-
-	     (tne-range-end
-	      tne-range-a)))))
+            :type 'range-segment
+            :owner (tne-range-owner tne-range-a)
+            :start-column (tne-range-start tne-range-a)
+            :text (tne-range-display-text tne-range-a "RANGE-A"))))
 
       (setq tne-range-a-segment-id
-      (tne-segment-id s))
+            (tne-segment-id s))
 
-      (if (eq
-           (tne-segment-owner s)
-           'n2)
+      (tne-add-segment-to-document s)
 
-          (setf
-           (tne-document-n2-segments
-            tne-current-document)
-
-           (cons
-            s
-            (tne-document-n2-segments
-             tne-current-document)))
-
-        (setf
-         (tne-document-n3-segments
-          tne-current-document)
-
-         (cons
-          s
-          (tne-document-n3-segments
-           tne-current-document))))
+      (when (memq (tne-segment-owner s) '(n2 n3))
+        (tne-redraw))
 
       (message
        "Segment %s created from Range A."
@@ -995,52 +1155,18 @@
     (let ((s
            (make-tne-segment
             :id (tne-generate-segment-id)
-            :type 'segment
-            :owner
-            (tne-range-owner
-             tne-range-b)
-
-            :start-column
-            (tne-range-start
-             tne-range-b)
-
-            :text
-            (format
-             "[RANGE-B %s:%s-%s]"
-
-             (tne-range-owner
-              tne-range-b)
-
-             (tne-range-start
-              tne-range-b)
-
-             (tne-range-end
-              tne-range-b)))))
+            :type 'range-segment
+            :owner (tne-range-owner tne-range-b)
+            :start-column (tne-range-start tne-range-b)
+            :text (tne-range-display-text tne-range-b "RANGE-B"))))
 
       (setq tne-range-b-segment-id
-      (tne-segment-id s))
+            (tne-segment-id s))
 
-      (if (eq
-           (tne-segment-owner s)
-           'n2)
+      (tne-add-segment-to-document s)
 
-          (setf
-           (tne-document-n2-segments
-            tne-current-document)
-
-           (cons
-            s
-            (tne-document-n2-segments
-             tne-current-document)))
-
-        (setf
-         (tne-document-n3-segments
-          tne-current-document)
-
-         (cons
-          s
-          (tne-document-n3-segments
-           tne-current-document))))
+      (when (memq (tne-segment-owner s) '(n2 n3))
+        (tne-redraw))
 
       (message
        "Segment %s created from Range B."
@@ -1240,43 +1366,58 @@
   (with-output-to-temp-buffer
       "*TNE Range Status*"
 
-    (with-output-to-temp-buffer
-    "*TNE Range Status*"
+    (princ
+     (format
+      "Range A: %s\n"
+      (if tne-range-a
+          "set"
+        "not set")))
 
-  (princ
-   (format
-    "Range A: %s\n"
-    (if tne-range-a
-        "set"
-      "not set")))
+    (when tne-range-a
+      (princ
+       (format
+        "  Owner=%s Start=%s End=%s Text=\"%s\"\n"
+        (tne-range-owner tne-range-a)
+        (tne-range-start tne-range-a)
+        (tne-range-end tne-range-a)
+        (or (tne-range-text tne-range-a) ""))))
 
-  (princ
-   (format
-    "Range B: %s\n"
-    (if tne-range-b
-        "set"
-      "not set")))
+    (princ
+     (format
+      "Range B: %s\n"
+      (if tne-range-b
+          "set"
+        "not set")))
 
-  (princ
-   (format
-    "Ready for linking: %s\n"
-    (if (tne-ranges-ready-p)
-        "yes"
-      "no")))
+    (when tne-range-b
+      (princ
+       (format
+        "  Owner=%s Start=%s End=%s Text=\"%s\"\n"
+        (tne-range-owner tne-range-b)
+        (tne-range-start tne-range-b)
+        (tne-range-end tne-range-b)
+        (or (tne-range-text tne-range-b) ""))))
 
-  (princ
-   (format
-    "Same owner: %s\n"
-    (if (tne-ranges-same-owner-p)
-        "yes"
-      "no")))
+    (princ
+     (format
+      "Ready for linking: %s\n"
+      (if (tne-ranges-ready-p)
+          "yes"
+        "no")))
 
-  (princ
-   (format
-    "Different owners: %s\n"
-    (if (tne-ranges-different-owners-p)
-        "yes"
-      "no"))))))
+    (princ
+     (format
+      "Same owner: %s\n"
+      (if (tne-ranges-same-owner-p)
+          "yes"
+        "no")))
+
+    (princ
+     (format
+      "Different owners: %s\n"
+      (if (tne-ranges-different-owners-p)
+          "yes"
+        "no")))))
 
 (defun tne-select-segment ()
 
