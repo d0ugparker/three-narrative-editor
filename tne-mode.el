@@ -59,6 +59,21 @@
  (define-key m (kbd "C-c C-s") #'tne-show-range-status)
  m))
 
+(defun tne-load-lorem-ipsum ()
+
+  (interactive)
+
+  (setf
+   (tne-document-narrative-1
+    tne-current-document)
+
+   "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt")
+
+  (tne-redraw)
+
+  (message
+   "Lorem ipsum loaded into Narrative 1."))
+
 (defun tne-show-document-info ()
   (interactive)
 
