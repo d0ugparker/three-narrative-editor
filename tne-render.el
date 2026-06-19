@@ -1,6 +1,10 @@
 (require 'tne-model)
 
 (defun tne-wrap-text (text width)
+
+  (when (< width 1)
+    (setq width 1))
+  
   (let ((words (split-string text " "))
         (lines nil)
         (current "")

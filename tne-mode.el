@@ -1540,6 +1540,30 @@
         (tne-relationship-target-id r)
         (tne-relationship-type r))))))
 
+(defun tne-list-segments ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE Segments*"
+
+    (dolist (s
+             (append
+              (tne-document-n2-segments
+               tne-current-document)
+
+              (tne-document-n3-segments
+               tne-current-document)))
+
+      (princ
+       (format
+        "SID=%s  Owner=%s  Start=%s  Text=\"%s\"\n"
+
+        (tne-segment-id s)
+        (tne-segment-owner s)
+        (tne-segment-start-column s)
+        (tne-segment-text s))))))
+
 (defun tne-find-layout-record-by-id (id)
 
   (catch 'found
