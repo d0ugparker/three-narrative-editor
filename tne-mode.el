@@ -54,10 +54,59 @@
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment)
  (define-key m (kbd "C-c C-a m") #'tne-set-range-a-manual)
  (define-key m (kbd "C-c C-b m") #'tne-set-range-b-manual)
- (define-key m (kbd "C-c C-a r") #'tne-set-range-a-from-region)
- (define-key m (kbd "C-c C-b r") #'tne-set-range-b-from-region)
+ (define-key m (kbd "C-c C-a s") #'tne-set-range-a-from-selection)
+ (define-key m (kbd "C-c C-b s") #'tne-set-range-b-from-selection)
  (define-key m (kbd "C-c C-s") #'tne-show-range-status)
  m))
+
+(defun tne-list-all-segments ()
+
+  (interactive)
+
+  (with-output-to-temp-buffer
+      "*TNE All Segments*"
+
+    (dolist
+        (s
+         (append
+
+          (tne-document-n1-segments
+           tne-current-document)
+
+          (tne-document-n2-segments
+           tne-current-document)
+
+          (tne-document-n3-segments
+           tne-current-document)))
+
+      (princ
+       (format
+
+        "SID=%s  Type=%s  Owner=%s  Start=%s  Text=\"%s\"\n"
+
+        (tne-segment-id s)
+        (tne-segment-type s)
+        (tne-segment-owner s)
+        (tne-segment-start-column s)
+        (tne-segment-text s))))))
+
+(defun tne-show-document-segment-counts ()
+  (interactive)
+
+  (message
+   "N1=%s N2=%s N3=%s"
+
+   (length
+    (tne-document-n1-segments
+     tne-current-document))
+
+   (length
+    (tne-document-n2-segments
+     tne-current-document))
+
+   (length
+    (tne-document-n3-segments
+     tne-current-document))))
 
 (defun tne-load-lorem-ipsum ()
 
@@ -877,7 +926,7 @@
   (let ((owner (tne-read-range-owner))
         (start (read-number "Start column: "))
         (end (read-number "End column: "))
-        (text (read-string "Selected text placeholder: ")))
+        (text (read-string "Selected text: ")))
     (tne-set-range-a owner start end text)))
 
 (defun tne-set-range-b-manual ()
@@ -885,7 +934,7 @@
   (let ((owner (tne-read-range-owner))
         (start (read-number "Start column: "))
         (end (read-number "End column: "))
-        (text (read-string "Selected text placeholder: ")))
+        (text (read-string "Selected text: ")))
     (tne-set-range-b owner start end text)))
 
 (defun tne-owner-at-buffer-line (line-number)
@@ -895,7 +944,7 @@
    ((= line-number 3) 'n3)
    (t nil)))
 
-(defun tne-region-to-range-data ()
+(defun tne-selection-to-range-data ()
   (unless (use-region-p)
     (error "No active region."))
 
@@ -925,16 +974,18 @@
                (max start-column (current-column))))
           (list owner start-column end-column text))))))
 
-(defun tne-set-range-a-from-region ()
+(defun tne-set-range-a-from-selection ()
+  "Set Range A from the current single-line selection."
   (interactive)
   (pcase-let ((`(,owner ,start ,end ,text)
-               (tne-region-to-range-data)))
+               (tne-selection-to-range-data)))
     (tne-set-range-a owner start end text)))
 
-(defun tne-set-range-b-from-region ()
+(defun tne-set-range-b-from-selection ()
+  "Set Range B from the current single-line selection."
   (interactive)
   (pcase-let ((`(,owner ,start ,end ,text)
-               (tne-region-to-range-data)))
+               (tne-selection-to-range-data)))
     (tne-set-range-b owner start end text)))
 
 (defun tne-range-display-text (range label)
@@ -1141,7 +1192,7 @@
     (let ((s
            (make-tne-segment
             :id (tne-generate-segment-id)
-            :type 'range-segment
+            :type 'segment
             :owner (tne-range-owner tne-range-a)
             :start-column (tne-range-start tne-range-a)
             :text (tne-range-display-text tne-range-a "RANGE-A"))))
@@ -1170,7 +1221,7 @@
     (let ((s
            (make-tne-segment
             :id (tne-generate-segment-id)
-            :type 'range-segment
+            :type 'segment
             :owner (tne-range-owner tne-range-b)
             :start-column (tne-range-start tne-range-b)
             :text (tne-range-display-text tne-range-b "RANGE-B"))))
@@ -1564,6 +1615,9 @@
 
     (dolist (s
              (append
+	      (tne-document-n1-segments
+		tne-current-document)
+
               (tne-document-n2-segments
                tne-current-document)
 
@@ -1572,9 +1626,10 @@
 
       (princ
        (format
-        "SID=%s  Owner=%s  Start=%s  Text=\"%s\"\n"
+        "SID=%s  Type=%s  Owner=%s  Start=%s  Text=\"%s\"\n"
 
         (tne-segment-id s)
+	(tne-segment-type s)
         (tne-segment-owner s)
         (tne-segment-start-column s)
         (tne-segment-text s))))))
@@ -1893,9 +1948,15 @@
 (defun tne-new-document ()
   (interactive)
 
+  (setq tne-range-a nil)
+  (setq tne-range-b nil)
+  (setq tne-range-a-segment-id nil)
+  (setq tne-range-b-segment-id nil)
+
   (switch-to-buffer "*TNE*")
 
   (erase-buffer)
 
   (tne-mode))
+
 (provide 'tne-mode)
