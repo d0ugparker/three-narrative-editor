@@ -48,7 +48,6 @@
  (define-key m (kbd "C-c C-l") #'tne-layout-report)
  (define-key m (kbd "C-c C-w") #'tne-wrap-report)
  (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment)
- (define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment)
  (define-key m (kbd "C-c C-3 d") #'tne-delete-n3-segment)
  (define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
  (define-key m (kbd "C-c C-3 e") #'tne-edit-n3-segment)
@@ -57,6 +56,7 @@
  (define-key m (kbd "C-c C-a s") #'tne-set-range-a-from-selection)
  (define-key m (kbd "C-c C-b s") #'tne-set-range-b-from-selection)
  (define-key m (kbd "C-c C-s") #'tne-show-range-status)
+ (define-key m (kbd "C-c C-g") #'tne-goto-insertion-point)
  m))
 
 (defun tne-list-all-segments ()
