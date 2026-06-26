@@ -1504,7 +1504,16 @@
       "Different owners: %s\n"
       (if (tne-ranges-different-owners-p)
           "yes"
-        "no")))))
+        "no")))
+
+    (princ
+     (if tne-current-insertion-point
+         (format
+          "Insertion point: set\n  Owner=%s Column=%s Reason=%s\n"
+          (tne-insertion-point-owner tne-current-insertion-point)
+          (tne-insertion-point-column tne-current-insertion-point)
+          (tne-insertion-point-reason tne-current-insertion-point))
+       "Insertion point: not set\n"))))
 
 (defun tne-show-insertion-point ()
   "Show the current transient insertion point."
