@@ -2054,26 +2054,12 @@
   (if collision
       (message "Not enough space to add this segment.")
 
-    (let ((s (make-tne-segment
-	      :id (tne-generate-segment-id)
-	      :type 'segment
-	      :owner
-	      (if (= n 2)
-		  'n2
-		'n3)
-              :start-column c
-              :text txt)))
+    (let ((owner
+	   (if (= n 2)
+               'n2
+             'n3)))
 
-      (if (= n 2)
-          (setf (tne-document-n2-segments tne-current-document)
-                (cons s
-                      (tne-document-n2-segments
-                       tne-current-document)))
-        (setf (tne-document-n3-segments tne-current-document)
-              (cons s
-                    (tne-document-n3-segments
-                     tne-current-document))))
-
+      (tne-create-segment-at owner c txt)
       (tne-redraw))))))
 
 (defun tne-add-n2-segment()(interactive)(tne-add-segment 2))
