@@ -89,8 +89,14 @@
   end
   text)
 
+(cl-defstruct tne-insertion-point
+  owner
+  column
+  reason)
+
 (defvar tne-range-a nil)
 (defvar tne-range-b nil)
+(defvar tne-current-insertion-point nil)
 
 (defvar tne-range-a-segment-id nil)
 (defvar tne-range-b-segment-id nil)
