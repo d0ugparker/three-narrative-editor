@@ -971,6 +971,23 @@
           (move-to-column (1- column) t)
           (point))))))
 
+(defun tne-goto-insertion-point ()
+  "Move point to the current transient insertion point."
+  (interactive)
+  (let ((position
+         (tne-buffer-position-for-insertion-point)))
+
+    (if position
+        (progn
+          (goto-char position)
+          (message
+           "Moved to insertion point: Owner=%s Column=%s"
+           (tne-insertion-point-owner tne-current-insertion-point)
+           (tne-insertion-point-column tne-current-insertion-point)))
+
+      (message
+       "Insertion point: not set"))))
+
 (defun tne-set-range-a-manual ()
   (interactive)
   (let ((owner (tne-read-range-owner))
