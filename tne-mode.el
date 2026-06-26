@@ -1985,6 +1985,7 @@
   (setq tne-range-b nil)
   (setq tne-range-a-segment-id nil)
   (setq tne-range-b-segment-id nil)
+  (setq tne-current-insertion-point nil)
 
   (switch-to-buffer "*TNE*")
 
