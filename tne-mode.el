@@ -1506,6 +1506,18 @@
           "yes"
         "no")))))
 
+(defun tne-show-insertion-point ()
+  "Show the current transient insertion point."
+  (interactive)
+  (if tne-current-insertion-point
+      (message
+       "Insertion point: Owner=%s Column=%s Reason=%s"
+       (tne-insertion-point-owner tne-current-insertion-point)
+       (tne-insertion-point-column tne-current-insertion-point)
+       (tne-insertion-point-reason tne-current-insertion-point))
+    (message
+     "Insertion point: not set")))
+
 (defun tne-select-segment ()
 
   (interactive)
