@@ -47,9 +47,9 @@
       (let ((m (make-sparse-keymap)))
 	(define-key m (kbd "C-c C-2 a") #'tne-add-n2-segment)
 	(define-key m (kbd "C-c C-3 a") #'tne-add-n3-segment)
-	(define-key m (kbd "C-c C-r") #'tne-redraw)
-	(define-key m (kbd "C-c C-l") #'tne-layout-report)
-	(define-key m (kbd "C-c C-w") #'tne-wrap-report)
+	(define-key m (kbd "C-c C-r")   #'tne-redraw)
+	(define-key m (kbd "C-c C-l")   #'tne-layout-report)
+	(define-key m (kbd "C-c C-w")   #'tne-wrap-report)
 	(define-key m (kbd "C-c C-2 d") #'tne-delete-n2-segment)
 	(define-key m (kbd "C-c C-3 d") #'tne-delete-n3-segment)
 	(define-key m (kbd "C-c C-2 e") #'tne-edit-n2-segment)
@@ -58,8 +58,9 @@
 	(define-key m (kbd "C-c C-b m") #'tne-set-range-b-manual)
 	(define-key m (kbd "C-c C-a s") #'tne-set-range-a-from-selection)
 	(define-key m (kbd "C-c C-b s") #'tne-set-range-b-from-selection)
-	(define-key m (kbd "C-c C-s") #'tne-show-range-status)
-	(define-key m (kbd "C-c C-g") #'tne-goto-insertion-point)
+	(define-key m (kbd "C-c C-s")   #'tne-show-range-status)
+	(define-key m (kbd "C-c C-g")   #'tne-goto-insertion-point)
+	(define-key m (kbd "C-c C-n")   #'tne-add-segment-at-insertion-point)
 	m))
 
 (defun tne-list-all-segments ()
@@ -1085,6 +1086,49 @@
      (error "Invalid segment owner: %s"
             (tne-segment-owner segment))))
   segment)
+
+(defun tne-create-segment-at (owner column text)
+  "Create a segment for OWNER at COLUMN containing TEXT."
+  (let ((segment
+         (make-tne-segment
+          :id (tne-generate-segment-id)
+          :type 'segment
+          :owner owner
+          :start-column column
+          :text text)))
+
+    (tne-add-segment-to-document segment)
+    segment))
+
+(defun tne-add-segment-at-insertion-point ()
+  "Add a segment at the current transient insertion point."
+  (interactive)
+  (if tne-current-insertion-point
+      (let* ((owner
+              (tne-insertion-point-owner
+               tne-current-insertion-point))
+
+             (column
+              (tne-insertion-point-column
+               tne-current-insertion-point))
+
+             (text
+              (read-string
+               "Segment text: "))
+
+             (segment
+              (tne-create-segment-at owner column text)))
+
+        (tne-redraw)
+
+        (message
+         "Added segment %s at %s column %s"
+         (tne-segment-id segment)
+         owner
+         column))
+
+    (message
+     "Insertion point: not set")))
 
 (defun tne-show-range-a ()
 
