@@ -950,6 +950,27 @@
     ('n3 3)
     (_ nil)))
 
+(defun tne-buffer-position-for-insertion-point ()
+  "Return the buffer position for `tne-current-insertion-point'."
+  (when tne-current-insertion-point
+    (let* ((owner
+            (tne-insertion-point-owner
+             tne-current-insertion-point))
+
+           (column
+            (tne-insertion-point-column
+             tne-current-insertion-point))
+
+           (line
+            (tne-rendered-line-for-owner owner)))
+
+      (when line
+        (save-excursion
+          (goto-char (point-min))
+          (forward-line (1- line))
+          (move-to-column (1- column) t)
+          (point))))))
+
 (defun tne-set-range-a-manual ()
   (interactive)
   (let ((owner (tne-read-range-owner))
