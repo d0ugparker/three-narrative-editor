@@ -1049,7 +1049,8 @@
   (interactive)
   (pcase-let ((`(,owner ,start ,end ,text)
                (tne-selection-to-range-data)))
-    (tne-set-range-a owner start end text)))
+    (tne-set-range-a owner start end text)
+    (tne-goto-insertion-point)))
 
 (defun tne-set-range-b-from-selection ()
   "Set Range B from the current single-line selection."
