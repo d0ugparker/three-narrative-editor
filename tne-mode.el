@@ -903,10 +903,31 @@
      :end range-end
      :text text)))
 
+(defun tne-projection-owner-for-range-a (range)
+  "Return the owner line where Range A should project next."
+  (pcase (tne-range-owner range)
+    ('n1 'n2)
+    ('n2 'n3)
+    ('n3 'n3)
+    (_ nil)))
+
+(defun tne-compute-insertion-point-for-range-a ()
+  "Compute the transient insertion point created by Range A."
+  (when tne-range-a
+    (let ((projection-owner
+           (tne-projection-owner-for-range-a tne-range-a)))
+      (when projection-owner
+        (make-tne-insertion-point
+         :owner projection-owner
+         :column (tne-range-start tne-range-a)
+         :reason 'range-a-projection)))))
+
 (defun tne-set-range-a (owner start end &optional text)
   (setq tne-range-a
         (tne-make-range-checked owner start end text))
   (setq tne-range-a-segment-id nil)
+  (setq tne-current-insertion-point
+        (tne-compute-insertion-point-for-range-a))
   (message "Range A set: %s %s-%s"
            (tne-range-owner tne-range-a)
            (tne-range-start tne-range-a)
