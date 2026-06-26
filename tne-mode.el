@@ -942,6 +942,14 @@
            (tne-range-start tne-range-b)
            (tne-range-end tne-range-b)))
 
+(defun tne-rendered-line-for-owner (owner)
+  "Return the rendered buffer line number for OWNER."
+  (pcase owner
+    ('n1 1)
+    ('n2 2)
+    ('n3 3)
+    (_ nil)))
+
 (defun tne-set-range-a-manual ()
   (interactive)
   (let ((owner (tne-read-range-owner))
