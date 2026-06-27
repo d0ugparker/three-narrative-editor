@@ -940,10 +940,14 @@
   (setq tne-current-insertion-point
 	(tne-resolve-insertion-point
 	 (tne-compute-insertion-point-for-range-a)))
-  (message "Range A set: %s %s-%s"
-           (tne-range-owner tne-range-a)
-           (tne-range-start tne-range-a)
-           (tne-range-end tne-range-a)))
+  
+  (if tne-current-insertion-point
+      (message "Range A set: %s %s-%s"
+               (tne-range-owner tne-range-a)
+               (tne-range-start tne-range-a)
+               (tne-range-end tne-range-a))
+    (message
+     "Range A set, but projected insertion positions are occupied. No insertion point assigned.")))
 
 (defun tne-set-range-b (owner start end &optional text)
   (setq tne-range-b
