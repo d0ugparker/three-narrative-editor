@@ -938,7 +938,8 @@
         (tne-make-range-checked owner start end text))
   (setq tne-range-a-segment-id nil)
   (setq tne-current-insertion-point
-        (tne-compute-insertion-point-for-range-a))
+	(tne-resolve-insertion-point
+	 (tne-compute-insertion-point-for-range-a)))
   (message "Range A set: %s %s-%s"
            (tne-range-owner tne-range-a)
            (tne-range-start tne-range-a)
@@ -1106,6 +1107,14 @@
     (_
      nil)))
 
+(defun tne-owner-below (owner)
+  "Return the next narrative owner below OWNER, if any."
+  (pcase owner
+    ('n1 'n2)
+    ('n2 'n3)
+    ('n3 nil)
+    (_ nil)))
+
 (defun tne-segments-at-position (owner column)
   "Return segments for OWNER that start at COLUMN."
   (seq-filter
@@ -1113,6 +1122,46 @@
      (= (tne-segment-start-column segment)
         column))
    (tne-document-segments-for-owner owner)))
+
+(defun tne-insertion-point-occupied-p (insertion-point)
+  "Return non-nil if INSERTION-POINT already has one or more segments."
+  (when insertion-point
+    (let ((owner
+           (tne-insertion-point-owner insertion-point))
+
+          (column
+           (tne-insertion-point-column insertion-point)))
+
+      (> (length
+          (tne-segments-at-position owner column))
+         0))))
+
+(defun tne-resolve-insertion-point (insertion-point)
+  "Return an available insertion point, moving downward once if needed."
+  (if (not (tne-insertion-point-occupied-p insertion-point))
+      insertion-point
+
+    (let* ((owner
+            (tne-insertion-point-owner insertion-point))
+
+           (column
+            (tne-insertion-point-column insertion-point))
+
+           (below-owner
+            (tne-owner-below owner))
+
+           (below-point
+            (when below-owner
+              (make-tne-insertion-point
+               :owner below-owner
+               :column column
+               :reason 'occupied-position-fallback))))
+
+      (if (and below-point
+               (not (tne-insertion-point-occupied-p below-point)))
+          below-point
+
+        nil))))
 
 (defun tne-show-segments-at-insertion-point ()
   "Show segments that already exist at the current insertion point."
