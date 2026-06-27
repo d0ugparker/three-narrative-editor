@@ -86,12 +86,13 @@
       (princ
        (format
 
-        "SID=%s  Type=%s  Owner=%s  Start=%s  Text=\"%s\"\n"
+        "SID=%s  Type=%s  Owner=%s  Start=%s  Aperture=%s  Text=\"%s\"\n"
 
         (tne-segment-id s)
         (tne-segment-type s)
         (tne-segment-owner s)
         (tne-segment-start-column s)
+	(or (tne-segment-aperture-width s) "none")
         (tne-segment-text s))))))
 
 (defun tne-show-document-segment-counts ()
@@ -1773,12 +1774,13 @@
 
       (princ
        (format
-        "SID=%s  Type=%s  Owner=%s  Start=%s  Text=\"%s\"\n"
+        "SID=%s  Type=%s  Owner=%s  Start=%s  Aperture=%s  Text=\"%s\"\n"
 
         (tne-segment-id s)
 	(tne-segment-type s)
         (tne-segment-owner s)
         (tne-segment-start-column s)
+	(or (tne-segment-aperture-width s) "none")
         (tne-segment-text s))))))
 
 (defun tne-find-layout-record-by-id (id)
