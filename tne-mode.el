@@ -1094,6 +1094,69 @@
             (tne-segment-owner segment))))
   segment)
 
+(defun tne-document-segments-for-owner (owner)
+  "Return the document segment list for OWNER."
+  (pcase owner
+    ('n1
+     (tne-document-n1-segments tne-current-document))
+    ('n2
+     (tne-document-n2-segments tne-current-document))
+    ('n3
+     (tne-document-n3-segments tne-current-document))
+    (_
+     nil)))
+
+(defun tne-segments-at-position (owner column)
+  "Return segments for OWNER that start at COLUMN."
+  (seq-filter
+   (lambda (segment)
+     (= (tne-segment-start-column segment)
+        column))
+   (tne-document-segments-for-owner owner)))
+
+(defun tne-show-segments-at-insertion-point ()
+  "Show segments that already exist at the current insertion point."
+  (interactive)
+  (if tne-current-insertion-point
+      (let* ((owner
+              (tne-insertion-point-owner
+               tne-current-insertion-point))
+
+             (column
+              (tne-insertion-point-column
+               tne-current-insertion-point))
+
+             (segments
+              (tne-segments-at-position owner column)))
+
+        (with-output-to-temp-buffer
+            "*TNE Segments At Insertion Point*"
+
+          (princ
+           (format
+            "Insertion point: Owner=%s Column=%s\n"
+            owner
+            column))
+
+          (princ
+           (format
+            "Segments found: %s\n\n"
+            (length segments)))
+
+          (dolist (segment segments)
+            (princ
+             (format
+              "SID=%s  Type=%s  Owner=%s  Start=%s  Aperture=%s  Text=\"%s\"\n"
+              (tne-segment-id segment)
+              (tne-segment-type segment)
+              (tne-segment-owner segment)
+              (tne-segment-start-column segment)
+              (or (tne-segment-aperture-width segment) "none")
+              (tne-segment-text segment))))))
+
+    (message
+     "Insertion point: not set")))
+
 (defun tne-create-segment-at (owner column text &optional aperture-width)
   "Create a segment for OWNER at COLUMN containing TEXT."
   (let ((segment
