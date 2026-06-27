@@ -915,6 +915,12 @@
     ('n3 'n3)
     (_ nil)))
 
+(defun tne-range-width (range)
+  "Return the inclusive width of RANGE."
+  (when range
+    (1+ (- (tne-range-end range)
+           (tne-range-start range)))))
+
 (defun tne-compute-insertion-point-for-range-a ()
   "Compute the transient insertion point created by Range A."
   (when tne-range-a
@@ -1087,7 +1093,7 @@
             (tne-segment-owner segment))))
   segment)
 
-(defun tne-create-segment-at (owner column text)
+(defun tne-create-segment-at (owner column text &optional aperture-width)
   "Create a segment for OWNER at COLUMN containing TEXT."
   (let ((segment
          (make-tne-segment
@@ -1095,7 +1101,8 @@
           :type 'segment
           :owner owner
           :start-column column
-          :text text)))
+          :text text
+          :aperture-width aperture-width)))
 
     (tne-add-segment-to-document segment)
     segment))
@@ -1117,7 +1124,11 @@
                "Segment text: "))
 
              (segment
-              (tne-create-segment-at owner column text)))
+	      (tne-create-segment-at
+	       owner
+	       column
+	       text
+	       (tne-range-width tne-range-a))))
 
         (tne-redraw)
 

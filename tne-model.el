@@ -35,7 +35,8 @@
   type
   owner
   start-column
-  text)
+  text
+  aperture-width)
 (cl-defstruct tne-relationship
   id
   source-id
