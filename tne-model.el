@@ -107,19 +107,21 @@
 (defvar tne-range-b nil)
 (defvar tne-current-insertion-point nil)
 (defvar tne-current-placement-choice nil)
-(defvar tne-current-placement-decision nil
-  "Current placement display decision.
+(defvar tne-current-placement-decision 'stack-in-viewfinder
+  "Current user-selected placement display mode.
 
 Possible values:
-nil
-  No placement decision is pending.
 
 stack-in-viewfinder
   Display additional narrative layers through a stacked viewfinder
   anchored in the last visible narrative owner.
 
 add-narrative-line
-  Display additional narrative layers as full standalone Nx lines.")
+  Display additional narrative layers as full standalone Nx lines.
+
+This value is a user preference. It should not be reset merely
+because a collision occurs. A collision should consult this value,
+not overwrite it.")
 
 (defvar tne-segment-entry-active-p nil
   "Non-nil when the user is actively entering segment text.

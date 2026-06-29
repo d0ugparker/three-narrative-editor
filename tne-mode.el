@@ -1259,8 +1259,6 @@ placement choice for future UI handling."
                :options '(add-narrative-line stack-in-viewfinder)
                :reason 'visible-commentary-lines-occupied))
 
-	(setq tne-current-placement-decision 'stack-in-viewfinder)
-
         nil)))))
 
 (defun tne-show-segments-at-insertion-point ()
