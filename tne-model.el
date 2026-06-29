@@ -95,9 +95,18 @@
   column
   reason)
 
+(cl-defstruct tne-placement-choice
+  status
+  requested-owner
+  anchor-owner
+  column
+  options
+  reason)
+
 (defvar tne-range-a nil)
 (defvar tne-range-b nil)
 (defvar tne-current-insertion-point nil)
+(defvar tne-current-placement-choice nil)
 
 (defvar tne-range-a-segment-id nil)
 (defvar tne-range-b-segment-id nil)
@@ -109,6 +118,58 @@
 
 (defvar tne-relationship-types
   '(unsure relates-to supports contradicts))
+
+(defvar tne-visible-narrative-owners
+  '(n1 n2 n3)
+  "Narrative owners currently rendered as standalone visible lines.
+
+N1 is the primary narrative.
+N2 and N3 are the default commentary narrative lines.
+
+Future owners such as N4, N5, and beyond may be displayed either
+as standalone narrative lines or through viewfinder projections.")
+
+(defvar tne-default-commentary-narrative-owners
+  '(n2 n3)
+  "Default commentary narrative owners available beneath N1.")
+
+(defun tne-narrative-owner-p (owner)
+  "Return non-nil if OWNER is a narrative owner symbol such as n1, n2, n3, n4."
+  (and
+   (symbolp owner)
+   (string-match-p
+    "\\`n[0-9]+\\'"
+    (symbol-name owner))))
+
+(defun tne-narrative-owner-number (owner)
+  "Return numeric part of OWNER.
+
+Example:
+n3 returns 3."
+  (when (tne-narrative-owner-p owner)
+    (string-to-number
+     (substring
+      (symbol-name owner)
+      1))))
+
+(defun tne-narrative-owner-from-number (number)
+  "Return narrative owner symbol for NUMBER.
+
+Example:
+4 returns n4."
+  (intern
+   (format "n%s" number)))
+
+(defun tne-next-narrative-owner (owner)
+  "Return the next narrative owner after OWNER.
+
+Example:
+n3 returns n4."
+  (let ((number
+         (tne-narrative-owner-number owner)))
+    (when number
+      (tne-narrative-owner-from-number
+       (1+ number)))))
 
 (defun tne-generate-segment-id ()
   (prog1 tne-next-segment-id

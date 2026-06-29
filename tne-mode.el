@@ -61,6 +61,8 @@
 	(define-key m (kbd "C-c C-s")   #'tne-show-range-status)
 	(define-key m (kbd "C-c C-g")   #'tne-goto-insertion-point)
 	(define-key m (kbd "C-c C-n")   #'tne-add-segment-at-insertion-point)
+	(define-key m (kbd "C-c C-m 1")   #'tne-new-document)
+	(define-key m (kbd "C-c C-m 2")   #'tne-load-lorem-ipsum)
 	m))
 
 (defun tne-list-all-segments ()
@@ -860,9 +862,8 @@
     (message
      "No segment selected.")))
 
-
 (defun tne-range-valid-owner-p (owner)
-  (memq owner '(n1 n2 n3)))
+  (tne-narrative-owner-p owner))
 
 (defun tne-normalize-range-owner (owner)
   (cond
@@ -874,9 +875,11 @@
   (intern
    (completing-read
     "Owner: "
-    '("n1" "n2" "n3")
+    (mapcar
+     #'symbol-name
+     tne-visible-narrative-owners)
     nil
-    t)))
+    nil)))
 
 (defun tne-normalize-range-boundaries (start end)
   (let ((a (min start end))
@@ -959,12 +962,16 @@
            (tne-range-end tne-range-b)))
 
 (defun tne-rendered-line-for-owner (owner)
-  "Return the rendered buffer line number for OWNER."
-  (pcase owner
-    ('n1 1)
-    ('n2 2)
-    ('n3 3)
-    (_ nil)))
+  "Return the rendered buffer line number for OWNER.
+
+Only owners currently listed in `tne-visible-narrative-owners'
+have standalone rendered buffer lines."
+  (let ((position
+         (cl-position
+          owner
+          tne-visible-narrative-owners)))
+    (when position
+      (1+ position))))
 
 (defun tne-buffer-position-for-insertion-point ()
   "Return the buffer position for `tne-current-insertion-point'."
@@ -1021,11 +1028,13 @@
     (tne-set-range-b owner start end text)))
 
 (defun tne-owner-at-buffer-line (line-number)
-  (cond
-   ((= line-number 1) 'n1)
-   ((= line-number 2) 'n2)
-   ((= line-number 3) 'n3)
-   (t nil)))
+  "Return narrative owner for rendered LINE-NUMBER.
+
+This maps visible standalone lines only.
+Future viewfinder lines should use a separate projection lookup."
+  (nth
+   (1- line-number)
+   tne-visible-narrative-owners))
 
 (defun tne-selection-to-range-data ()
   (unless (use-region-p)
@@ -1112,12 +1121,52 @@
      nil)))
 
 (defun tne-owner-below (owner)
-  "Return the next narrative owner below OWNER, if any."
-  (pcase owner
-    ('n1 'n2)
-    ('n2 'n3)
-    ('n3 nil)
-    (_ nil)))
+  "Return the next visible narrative owner below OWNER, if any.
+
+This only searches currently visible standalone narrative lines.
+It does not create N4 and does not enter a viewfinder."
+  (let* ((position
+          (cl-position
+           owner
+           tne-visible-narrative-owners))
+
+         (next-position
+          (when position
+            (1+ position))))
+
+    (when next-position
+      (nth
+       next-position
+       tne-visible-narrative-owners))))
+
+(defun tne-last-visible-narrative-owner ()
+  "Return the last currently visible standalone narrative owner."
+  (car
+   (last
+    tne-visible-narrative-owners)))
+
+(defun tne-clear-placement-choice ()
+  "Clear the current blocked-placement choice state."
+  (setq tne-current-placement-choice nil))
+
+(defun tne-make-blocked-placement-choice (requested-point)
+  "Create a blocked-placement choice for REQUESTED-POINT.
+
+This does not ask the user anything yet.
+It records the future decision point where the user may choose
+to add another narrative line or use a viewfinder projection."
+  (make-tne-placement-choice
+   :status 'blocked
+   :requested-owner
+   (tne-insertion-point-owner requested-point)
+   :anchor-owner
+   (tne-last-visible-narrative-owner)
+   :column
+   (tne-insertion-point-column requested-point)
+   :options
+   '(add-narrative-line stack-in-viewfinder)
+   :reason
+   'visible-commentary-lines-occupied))
 
 (defun tne-segments-at-position (owner column)
   "Return segments for OWNER that start at COLUMN."
@@ -1141,10 +1190,21 @@
          0))))
 
 (defun tne-resolve-insertion-point (insertion-point)
-  "Return an available insertion point, moving downward once if needed."
-  (if (not (tne-insertion-point-occupied-p insertion-point))
-      insertion-point
+  "Return an available insertion point, moving downward once if needed.
 
+If no visible insertion point is available, store a blocked
+placement choice for future UI handling."
+  (cond
+
+   ((not insertion-point)
+    (setq tne-current-placement-choice nil)
+    nil)
+
+   ((not (tne-insertion-point-occupied-p insertion-point))
+    (setq tne-current-placement-choice nil)
+    insertion-point)
+
+   (t
     (let* ((owner
             (tne-insertion-point-owner insertion-point))
 
@@ -1163,9 +1223,20 @@
 
       (if (and below-point
                (not (tne-insertion-point-occupied-p below-point)))
-          below-point
+          (progn
+            (setq tne-current-placement-choice nil)
+            below-point)
 
-        nil))))
+        (setq tne-current-placement-choice
+              (make-tne-placement-choice
+               :status 'blocked
+               :requested-owner owner
+               :anchor-owner 'n3
+               :column column
+               :options '(add-narrative-line stack-in-viewfinder)
+               :reason 'visible-commentary-lines-occupied))
+
+        nil)))))
 
 (defun tne-show-segments-at-insertion-point ()
   "Show segments that already exist at the current insertion point."
@@ -1918,6 +1989,22 @@
   (message "%S"
            tne-layout-records))
 
+(defun tne-show-placement-choice ()
+  "Show the current blocked-placement choice, if one exists."
+  (interactive)
+  (if tne-current-placement-choice
+      (message
+       "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s Reason=%s"
+       (tne-placement-choice-status tne-current-placement-choice)
+       (tne-placement-choice-requested-owner tne-current-placement-choice)
+       (tne-placement-choice-anchor-owner tne-current-placement-choice)
+       (tne-placement-choice-column tne-current-placement-choice)
+       (tne-placement-choice-options tne-current-placement-choice)
+       (tne-placement-choice-reason tne-current-placement-choice))
+
+    (message
+     "Placement choice: none")))
+
 (defun tne-layout-record-report ()
   (interactive)
 
@@ -2197,6 +2284,7 @@
  (setq tne-current-document (tne-model-create-default))
  (setq buffer-read-only nil)(tne-redraw))
 (defun tne-new-document ()
+  
   (interactive)
 
   (setq tne-range-a nil)
@@ -2204,6 +2292,7 @@
   (setq tne-range-a-segment-id nil)
   (setq tne-range-b-segment-id nil)
   (setq tne-current-insertion-point nil)
+  (setq tne-current-placement-choice nil)
 
   (switch-to-buffer "*TNE*")
 
