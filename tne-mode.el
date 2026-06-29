@@ -2029,7 +2029,7 @@ placement choice for future UI handling."
     (message
      "Placement choice: none")))
 
-(defun tne-show-placement-decision ()
+(defun tne-show-display-mode ()
   "Show the current RE display mode."
   (interactive)
   (if (tne-current-display-mode)
@@ -2039,6 +2039,11 @@ placement choice for future UI handling."
 
     (message
      "Display mode: none")))
+
+(defun tne-show-placement-decision ()
+  "Compatibility wrapper for `tne-show-display-mode'."
+  (interactive)
+  (tne-show-display-mode))
 
 (defun tne-toggle-placement-display-mode ()
   "Toggle the current RE display mode.
