@@ -1145,6 +1145,12 @@ It does not create N4 and does not enter a viewfinder."
    (last
     tne-visible-narrative-owners)))
 
+(defun tne-last-visible-narrative-owner ()
+  "Return the last currently visible standalone narrative owner."
+  (car
+   (last
+    tne-visible-narrative-owners)))
+
 (defun tne-clear-placement-choice ()
   "Clear the current blocked-placement choice state."
   (setq tne-current-placement-choice nil))
@@ -1231,7 +1237,7 @@ placement choice for future UI handling."
               (make-tne-placement-choice
                :status 'blocked
                :requested-owner owner
-               :anchor-owner 'n3
+	       :anchor-owner (tne-last-visible-narrative-owner)
                :column column
                :options '(add-narrative-line stack-in-viewfinder)
                :reason 'visible-commentary-lines-occupied))
