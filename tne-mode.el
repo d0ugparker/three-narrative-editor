@@ -2015,7 +2015,7 @@ placement choice for future UI handling."
 (defun tne-show-placement-choice ()
   "Show the current blocked-placement choice, if one exists."
   (interactive)
-  (if tne-current-placement-choice
+  (if tne-current-display-mode
       (message
        "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s Decision=%s Reason=%s"
        (tne-placement-choice-status tne-current-placement-choice)
@@ -2030,39 +2030,58 @@ placement choice for future UI handling."
      "Placement choice: none")))
 
 (defun tne-show-placement-decision ()
-  "Show the current placement display decision."
+  "Show the current RE display mode."
   (interactive)
-  (if tne-current-placement-decision
+  (if (tne-current-display-mode)
       (message
-       "Placement decision: %s"
-       tne-current-placement-decision)
+       "Display mode: %s"
+       (tne-current-display-mode))
 
     (message
-     "Placement decision: none")))
+     "Display mode: none")))
 
 (defun tne-toggle-placement-display-mode ()
-  "Toggle placement display mode between stacked and fully expanded.
+  "Toggle the current RE display mode.
 
-This is the future TAB behavior during segment text entry.
-For now, it only changes stored state and reports what would be
-rerendered later."
+Option-TAB uses this command to switch between the compact
+stacked viewfinder display and fully expanded narrative-line
+display. For now, this changes stored state only; later it will
+also trigger rerendering."
   (interactive)
-  (pcase tne-current-placement-decision
+  (pcase (tne-current-display-mode)
 
     ('stack-in-viewfinder
-     (setq tne-current-placement-decision 'add-narrative-line)
+     (tne-set-display-mode 'add-narrative-line)
      (message
-      "Placement display mode: add-narrative-line. Future TAB action: rerender all stacked narratives as full Nx lines."))
+      "Display mode changed to: add-narrative-line"))
 
     ('add-narrative-line
-     (setq tne-current-placement-decision 'stack-in-viewfinder)
+     (tne-set-display-mode 'stack-in-viewfinder)
      (message
-      "Placement display mode: stack-in-viewfinder. Future TAB action: rerender extra narratives inside last-line viewfinder."))
+      "Display mode changed to: stack-in-viewfinder"))
 
     (_
-     (setq tne-current-placement-decision 'stack-in-viewfinder)
+     (tne-set-display-mode 'stack-in-viewfinder)
      (message
-      "Placement display mode: stack-in-viewfinder. Default placement decision initialized."))))
+      "Display mode initialized to: stack-in-viewfinder"))))
+
+(defun tne-set-display-mode (mode)
+  "Set the current RE display MODE.
+
+Also updates the older placement-decision variable during migration."
+  (setq tne-current-display-mode mode)
+  (setq tne-current-placement-decision mode))
+
+(defun tne-current-display-mode ()
+  "Return the current RE display mode.
+
+During migration, keep the older placement-decision variable and
+the newer display-mode variable synchronized."
+  (unless (eq tne-current-display-mode
+              tne-current-placement-decision)
+    (setq tne-current-display-mode
+          tne-current-placement-decision))
+  tne-current-display-mode)
 
 (defun tne-segment-entry-tab-dispatch ()
   "Handle future TAB behavior during segment entry.
@@ -2112,12 +2131,12 @@ decision."
       (pcase selected
 
         ('add-narrative-line
-	 (setq tne-current-placement-decision 'add-narrative-line)
+	 (setq tne-set-display-mode 'add-narrative-line)
          (message
           "Placement choice selected: add narrative line. Future action: create next visible narrative owner."))
 
         ('stack-in-viewfinder
-	 (setq tne-current-placement-decision 'stack-in-viewfinder)
+	 (setq tne-set-display-mode 'stack-in-viewfinder)
          (message
           "Placement choice selected: stack in viewfinder. Future action: create viewfinder projection anchored in last visible narrative owner %s."
           (tne-placement-choice-anchor-owner choice)))

@@ -123,6 +123,22 @@ This value is a user preference. It should not be reset merely
 because a collision occurs. A collision should consult this value,
 not overwrite it.")
 
+(defvar tne-current-display-mode tne-current-placement-decision
+  "Current user-selected RE display mode.
+
+Possible values:
+
+stack-in-viewfinder
+  Display additional narrative layers through a stacked viewfinder
+  anchored in the last visible narrative owner.
+
+add-narrative-line
+  Display additional narrative layers as full standalone Nx lines.
+
+This is the broader display preference used by the RE.
+The older name `tne-current-placement-decision' remains temporarily
+as a compatibility alias during migration.")
+
 (defvar tne-segment-entry-active-p nil
   "Non-nil when the user is actively entering segment text.
 
