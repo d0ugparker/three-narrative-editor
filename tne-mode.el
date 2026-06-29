@@ -1242,6 +1242,8 @@ placement choice for future UI handling."
                :options '(add-narrative-line stack-in-viewfinder)
                :reason 'visible-commentary-lines-occupied))
 
+	(setq tne-current-placement-decision 'stack-in-viewfinder)
+
         nil)))))
 
 (defun tne-show-segments-at-insertion-point ()
@@ -2000,16 +2002,52 @@ placement choice for future UI handling."
   (interactive)
   (if tne-current-placement-choice
       (message
-       "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s Reason=%s"
+       "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s Decision=%s Reason=%s"
        (tne-placement-choice-status tne-current-placement-choice)
        (tne-placement-choice-requested-owner tne-current-placement-choice)
        (tne-placement-choice-anchor-owner tne-current-placement-choice)
        (tne-placement-choice-column tne-current-placement-choice)
        (tne-placement-choice-options tne-current-placement-choice)
+       tne-current-placement-decision
        (tne-placement-choice-reason tne-current-placement-choice))
 
     (message
      "Placement choice: none")))
+
+(defun tne-show-placement-decision ()
+  "Show the current placement display decision."
+  (interactive)
+  (if tne-current-placement-decision
+      (message
+       "Placement decision: %s"
+       tne-current-placement-decision)
+
+    (message
+     "Placement decision: none")))
+
+(defun tne-toggle-placement-display-mode ()
+  "Toggle placement display mode between stacked and fully expanded.
+
+This is the future TAB behavior during segment text entry.
+For now, it only changes stored state and reports what would be
+rerendered later."
+  (interactive)
+  (pcase tne-current-placement-decision
+
+    ('stack-in-viewfinder
+     (setq tne-current-placement-decision 'add-narrative-line)
+     (message
+      "Placement display mode: add-narrative-line. Future TAB action: rerender all stacked narratives as full Nx lines."))
+
+    ('add-narrative-line
+     (setq tne-current-placement-decision 'stack-in-viewfinder)
+     (message
+      "Placement display mode: stack-in-viewfinder. Future TAB action: rerender extra narratives inside last-line viewfinder."))
+
+    (_
+     (setq tne-current-placement-decision 'stack-in-viewfinder)
+     (message
+      "Placement display mode: stack-in-viewfinder. Default placement decision initialized."))))
 
 (defun tne-handle-placement-choice ()
   "Handle the current blocked-placement choice.
@@ -2043,10 +2081,12 @@ decision."
       (pcase selected
 
         ('add-narrative-line
+	 (setq tne-current-placement-decision 'add-narrative-line)
          (message
           "Placement choice selected: add narrative line. Future action: create next visible narrative owner."))
 
         ('stack-in-viewfinder
+	 (setq tne-current-placement-decision 'stack-in-viewfinder)
          (message
           "Placement choice selected: stack in viewfinder. Future action: create viewfinder projection anchored in last visible narrative owner %s."
           (tne-placement-choice-anchor-owner choice)))
@@ -2344,6 +2384,7 @@ decision."
   (setq tne-range-b-segment-id nil)
   (setq tne-current-insertion-point nil)
   (setq tne-current-placement-choice nil)
+  (setq tne-current-placement-decision nil)
 
   (switch-to-buffer "*TNE*")
 

@@ -107,6 +107,19 @@
 (defvar tne-range-b nil)
 (defvar tne-current-insertion-point nil)
 (defvar tne-current-placement-choice nil)
+(defvar tne-current-placement-decision nil
+  "Current placement display decision.
+
+Possible values:
+nil
+  No placement decision is pending.
+
+stack-in-viewfinder
+  Display additional narrative layers through a stacked viewfinder
+  anchored in the last visible narrative owner.
+
+add-narrative-line
+  Display additional narrative layers as full standalone Nx lines.")
 
 (defvar tne-range-a-segment-id nil)
 (defvar tne-range-b-segment-id nil)
