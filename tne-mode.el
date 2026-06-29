@@ -1220,11 +1220,11 @@ placement choice for future UI handling."
   (cond
 
    ((not insertion-point)
-    (setq tne-current-placement-choice nil)
+    (tne-clear-display-choice-object)
     nil)
 
    ((not (tne-insertion-point-occupied-p insertion-point))
-    (setq tne-current-placement-choice nil)
+    (tne-clear-display-choice-object)
     insertion-point)
 
    (t
@@ -1247,17 +1247,17 @@ placement choice for future UI handling."
       (if (and below-point
                (not (tne-insertion-point-occupied-p below-point)))
           (progn
-            (setq tne-current-placement-choice nil)
+            (tne-clear-display-choice-object)
             below-point)
 
-        (setq tne-current-placement-choice
-              (make-tne-placement-choice
-               :status 'blocked
-               :requested-owner owner
-	       :anchor-owner (tne-last-visible-narrative-owner)
-               :column column
-               :options '(add-narrative-line stack-in-viewfinder)
-               :reason 'visible-commentary-lines-occupied))
+	(tne-set-display-choice
+	 (make-tne-placement-choice
+	  :status 'blocked
+	  :requested-owner owner
+	  :anchor-owner (tne-last-visible-narrative-owner)
+	  :column column
+	  :options '(add-narrative-line stack-in-viewfinder)
+	  :reason 'visible-commentary-lines-occupied))
 
         nil)))))
 
@@ -2015,26 +2015,27 @@ placement choice for future UI handling."
 (defun tne-show-display-choice ()
   "Show the current blocked-placement choice, if one exists."
   (interactive)
-  (if tne-current-display-mode
-      (message
-       "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s DisplayMode=%s Reason=%s"
-       (tne-placement-choice-status tne-current-placement-choice)
-       (tne-placement-choice-requested-owner tne-current-placement-choice)
-       (tne-placement-choice-anchor-owner tne-current-placement-choice)
-       (tne-placement-choice-column tne-current-placement-choice)
-       (tne-placement-choice-options tne-current-placement-choice)
-       tne-current-placement-decision
-       (tne-placement-choice-reason tne-current-placement-choice))
+  (let ((choice (tne-current-display-choice)))
+    (if choice
+        (message
+         "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s DisplayMode=%s Reason=%s"
+         (tne-placement-choice-status choice)
+         (tne-placement-choice-requested-owner choice)
+         (tne-placement-choice-anchor-owner choice)
+         (tne-placement-choice-column choice)
+         (tne-placement-choice-options choice)
+         (tne-current-display-mode)
+         (tne-placement-choice-reason choice))
 
-    (message
-     "Placement choice: none")))
+      (message
+       "Placement choice: none"))))
 
 (defun tne-clear-display-choice ()
   "Clear the current blocked-placement display choice.
 
 This does not change the current RE display mode."
   (interactive)
-  (setq tne-current-placement-choice nil)
+  (tne-clear-display-choice-object)
   (message
    "Display choice cleared. Display mode remains: %s"
    (tne-current-display-mode)))
@@ -2043,7 +2044,7 @@ This does not change the current RE display mode."
   "Reset the RE display state to its default startup values."
   (interactive)
   (tne-set-display-mode 'stack-in-viewfinder)
-  (setq tne-current-placement-choice nil)
+  (tne-clear-display-choice-object)
   (message
    "Display state reset: Mode=stack-in-viewfinder Choice=none"))
 
@@ -2066,18 +2067,35 @@ This does not change the current RE display mode."
 (defun tne-show-display-state ()
   "Show the current RE display mode and blocked-placement choice state."
   (interactive)
-  (if tne-current-placement-choice
-      (message
-       "Display state: Mode=%s Choice=present Requested=%s Anchor=%s Column=%s Reason=%s"
-       (tne-current-display-mode)
-       (tne-placement-choice-requested-owner tne-current-placement-choice)
-       (tne-placement-choice-anchor-owner tne-current-placement-choice)
-       (tne-placement-choice-column tne-current-placement-choice)
-       (tne-placement-choice-reason tne-current-placement-choice))
+  (let ((choice (tne-current-display-choice)))
+    (if choice
+        (message
+         "Display state: Mode=%s Choice=present Requested=%s Anchor=%s Column=%s Reason=%s"
+         (tne-current-display-mode)
+         (tne-placement-choice-requested-owner choice)
+         (tne-placement-choice-anchor-owner choice)
+         (tne-placement-choice-column choice)
+         (tne-placement-choice-reason choice))
 
-    (message
-     "Display state: Mode=%s Choice=none"
-     (tne-current-display-mode))))
+      (message
+       "Display state: Mode=%s Choice=none"
+       (tne-current-display-mode)))))
+
+(defun tne-display-choice-present-p ()
+  "Return non-nil when a blocked-placement display choice is present."
+  (not (null (tne-current-placement-choice))))
+
+(defun tne-current-display-choice ()
+  "Return the current blocked-placement display choice object, if any."
+  tne-current-placement-choice)
+
+(defun tne-set-display-choice (choice)
+  "Set the current blocked-placement display CHOICE object."
+  (setq tne-current-placement-choice choice))
+
+(defun tne-clear-display-choice-object ()
+  "Clear the current blocked-placement display choice object."
+  (tne-set-display-choice nil))
 
 (defun tne-show-placement-decision ()
   "Compatibility wrapper for `tne-show-display-mode'."
@@ -2144,51 +2162,46 @@ through. This command is not yet globally bound."
      "Segment entry inactive. Future TAB behavior: pass through to normal Emacs TAB.")))
 
 (defun tne-handle-placement-choice ()
-  "Handle the current blocked-placement choice.
-
-This is an early workflow hook. It does not yet create new
-narrative lines or viewfinder projections. It only confirms that
-the stored blocked-placement state can be presented as a user
-decision."
+  "Handle the current blocked-placement choice."
   (interactive)
-  (if (not tne-current-placement-choice)
+  (let ((choice (tne-current-display-choice)))
+    (if (not choice)
+        (message
+         "No placement choice is currently pending.")
 
-      (message
-       "No placement choice is pending.")
+      (let* ((options
+              (mapcar
+               #'symbol-name
+               (tne-placement-choice-options choice)))
 
-    (let* ((choice
-            tne-current-placement-choice)
+             (selected
+              (intern
+               (completing-read
+                "Display blocked placement as: "
+                options
+                nil
+                t
+                nil
+                nil
+                (symbol-name
+                 (tne-current-display-mode))))))
 
-           (options
-            (mapcar
-             #'symbol-name
-             (tne-placement-choice-options choice)))
+        (pcase selected
 
-           (selected
-            (intern
-             (completing-read
-              "Blocked placement. Choose: "
-              options
-              nil
-              t))))
+          ('add-narrative-line
+           (tne-set-display-mode 'add-narrative-line)
+           (message
+            "Display mode changed to: add-narrative-line"))
 
-      (pcase selected
+          ('stack-in-viewfinder
+           (tne-set-display-mode 'stack-in-viewfinder)
+           (message
+            "Display mode changed to: stack-in-viewfinder"))
 
-        ('add-narrative-line
-	 (setq tne-set-display-mode 'add-narrative-line)
-         (message
-          "Placement choice selected: add narrative line. Future action: create next visible narrative owner."))
-
-        ('stack-in-viewfinder
-	 (setq tne-set-display-mode 'stack-in-viewfinder)
-         (message
-          "Placement choice selected: stack in viewfinder. Future action: create viewfinder projection anchored in last visible narrative owner %s."
-          (tne-placement-choice-anchor-owner choice)))
-
-        (_
-         (message
-          "Unknown placement choice: %s"
-          selected))))))
+          (_
+           (message
+            "Unknown display mode: %s"
+            selected)))))))
 
 (defun tne-start-segment-entry ()
   "Enter segment-entry state.
