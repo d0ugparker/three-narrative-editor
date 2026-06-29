@@ -2096,6 +2096,32 @@ decision."
           "Unknown placement choice: %s"
           selected))))))
 
+(defun tne-start-segment-entry ()
+  "Enter segment-entry state.
+
+This is a workflow hook. Future TAB behavior should become active
+only while this state is non-nil."
+  (interactive)
+  (setq tne-segment-entry-active-p t)
+  (message
+   "Segment entry: active"))
+
+(defun tne-end-segment-entry ()
+  "Leave segment-entry state."
+  (interactive)
+  (setq tne-segment-entry-active-p nil)
+  (message
+   "Segment entry: inactive"))
+
+(defun tne-show-segment-entry-state ()
+  "Show whether segment-entry state is active."
+  (interactive)
+  (if tne-segment-entry-active-p
+      (message
+       "Segment entry: active")
+    (message
+     "Segment entry: inactive")))
+
 (defun tne-layout-record-report ()
   (interactive)
 
@@ -2385,6 +2411,7 @@ decision."
   (setq tne-current-insertion-point nil)
   (setq tne-current-placement-choice nil)
   (setq tne-current-placement-decision nil)
+  (setq tne-segment-entry-active-p nil)
 
   (switch-to-buffer "*TNE*")
 

@@ -121,6 +121,13 @@ stack-in-viewfinder
 add-narrative-line
   Display additional narrative layers as full standalone Nx lines.")
 
+(defvar tne-segment-entry-active-p nil
+  "Non-nil when the user is actively entering segment text.
+
+Future TAB behavior should only toggle placement display mode when
+this value is non-nil. Outside segment entry, TAB should retain its
+ordinary Emacs behavior.")
+
 (defvar tne-range-a-segment-id nil)
 (defvar tne-range-b-segment-id nil)
 
