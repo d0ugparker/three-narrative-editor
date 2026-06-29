@@ -63,8 +63,24 @@
 	(define-key m (kbd "C-c C-n")   #'tne-add-segment-at-insertion-point)
 	(define-key m (kbd "C-c C-m 1")   #'tne-new-document)
 	(define-key m (kbd "C-c C-m 2")   #'tne-load-lorem-ipsum)
-	(define-key m (kbd "TAB") #'tne-segment-entry-tab-dispatch)
 	m))
+
+(defun tne-install-keybindings ()
+  "Install or refresh TNE mode keybindings.
+
+This function exists because `defvar' does not rebuild
+`tne-mode-map' after the variable has already been defined.
+Calling this after load-file ensures newly added keybindings are
+installed without restarting Emacs."
+  (define-key tne-mode-map (kbd "C-c C-a s") #'tne-set-range-a-from-selection)
+  (define-key tne-mode-map (kbd "C-c C-b s") #'tne-set-range-b-from-selection)
+  (define-key tne-mode-map (kbd "C-c C-s") #'tne-show-range-status)
+
+  ;; macOS Option-TAB arrives in Emacs as M-<tab>,
+  ;; which Emacs translates to C-M-i.
+  (define-key tne-mode-map (kbd "C-M-i") #'tne-toggle-placement-display-mode))
+
+(tne-install-keybindings)
 
 (defun tne-list-all-segments ()
 
@@ -2427,7 +2443,6 @@ only while this state is non-nil."
   (setq tne-range-b-segment-id nil)
   (setq tne-current-insertion-point nil)
   (setq tne-current-placement-choice nil)
-  (setq tne-current-placement-decision nil)
   (setq tne-segment-entry-active-p nil)
 
   (switch-to-buffer "*TNE*")
