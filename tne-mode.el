@@ -2011,6 +2011,51 @@ placement choice for future UI handling."
     (message
      "Placement choice: none")))
 
+(defun tne-handle-placement-choice ()
+  "Handle the current blocked-placement choice.
+
+This is an early workflow hook. It does not yet create new
+narrative lines or viewfinder projections. It only confirms that
+the stored blocked-placement state can be presented as a user
+decision."
+  (interactive)
+  (if (not tne-current-placement-choice)
+
+      (message
+       "No placement choice is pending.")
+
+    (let* ((choice
+            tne-current-placement-choice)
+
+           (options
+            (mapcar
+             #'symbol-name
+             (tne-placement-choice-options choice)))
+
+           (selected
+            (intern
+             (completing-read
+              "Blocked placement. Choose: "
+              options
+              nil
+              t))))
+
+      (pcase selected
+
+        ('add-narrative-line
+         (message
+          "Placement choice selected: add narrative line. Future action: create next visible narrative owner."))
+
+        ('stack-in-viewfinder
+         (message
+          "Placement choice selected: stack in viewfinder. Future action: create viewfinder projection anchored in last visible narrative owner %s."
+          (tne-placement-choice-anchor-owner choice)))
+
+        (_
+         (message
+          "Unknown placement choice: %s"
+          selected))))))
+
 (defun tne-layout-record-report ()
   (interactive)
 
