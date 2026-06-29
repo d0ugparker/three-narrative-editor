@@ -2049,6 +2049,22 @@ rerendered later."
      (message
       "Placement display mode: stack-in-viewfinder. Default placement decision initialized."))))
 
+(defun tne-segment-entry-tab-dispatch ()
+  "Handle future TAB behavior during segment entry.
+
+When segment entry is active, TAB toggles between stacked
+viewfinder display and fully expanded narrative-line display.
+
+When segment entry is inactive, this function does not perform a
+normal TAB. It only reports that ordinary TAB behavior should pass
+through. This command is not yet globally bound."
+  (interactive)
+  (if tne-segment-entry-active-p
+      (tne-toggle-placement-display-mode)
+
+    (message
+     "Segment entry inactive. Future TAB behavior: pass through to normal Emacs TAB.")))
+
 (defun tne-handle-placement-choice ()
   "Handle the current blocked-placement choice.
 
