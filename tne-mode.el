@@ -2017,7 +2017,7 @@ placement choice for future UI handling."
   (interactive)
   (if tne-current-display-mode
       (message
-       "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s Decision=%s Reason=%s"
+       "Placement choice: Status=%s Requested=%s Anchor=%s Column=%s Options=%s DisplayMode=%s Reason=%s"
        (tne-placement-choice-status tne-current-placement-choice)
        (tne-placement-choice-requested-owner tne-current-placement-choice)
        (tne-placement-choice-anchor-owner tne-current-placement-choice)
