@@ -1168,7 +1168,7 @@ It does not create N4 and does not enter a viewfinder."
    (last
     tne-visible-narrative-owners)))
 
-(defun tne-clear-placement-choice ()
+(defun tne-clear-oplacement-choice ()
   "Clear the current blocked-placement choice state."
   (setq tne-current-placement-choice nil))
 
@@ -2012,7 +2012,7 @@ placement choice for future UI handling."
   (message "%S"
            tne-layout-records))
 
-(defun tne-show-placement-choice ()
+(defun tne-show-display-choice ()
   "Show the current blocked-placement choice, if one exists."
   (interactive)
   (if tne-current-display-mode
@@ -2029,6 +2029,29 @@ placement choice for future UI handling."
     (message
      "Placement choice: none")))
 
+(defun tne-clear-display-choice ()
+  "Clear the current blocked-placement display choice.
+
+This does not change the current RE display mode."
+  (interactive)
+  (setq tne-current-placement-choice nil)
+  (message
+   "Display choice cleared. Display mode remains: %s"
+   (tne-current-display-mode)))
+
+(defun tne-reset-display-state ()
+  "Reset the RE display state to its default startup values."
+  (interactive)
+  (tne-set-display-mode 'stack-in-viewfinder)
+  (setq tne-current-placement-choice nil)
+  (message
+   "Display state reset: Mode=stack-in-viewfinder Choice=none"))
+
+(defun tne-show-placement-choice ()
+  "Compatibility wrapper for `tne-show-display-choice'."
+  (interactive)
+  (tne-show-display-choice))
+
 (defun tne-show-display-mode ()
   "Show the current RE display mode."
   (interactive)
@@ -2039,6 +2062,22 @@ placement choice for future UI handling."
 
     (message
      "Display mode: none")))
+
+(defun tne-show-display-state ()
+  "Show the current RE display mode and blocked-placement choice state."
+  (interactive)
+  (if tne-current-placement-choice
+      (message
+       "Display state: Mode=%s Choice=present Requested=%s Anchor=%s Column=%s Reason=%s"
+       (tne-current-display-mode)
+       (tne-placement-choice-requested-owner tne-current-placement-choice)
+       (tne-placement-choice-anchor-owner tne-current-placement-choice)
+       (tne-placement-choice-column tne-current-placement-choice)
+       (tne-placement-choice-reason tne-current-placement-choice))
+
+    (message
+     "Display state: Mode=%s Choice=none"
+     (tne-current-display-mode))))
 
 (defun tne-show-placement-decision ()
   "Compatibility wrapper for `tne-show-display-mode'."
