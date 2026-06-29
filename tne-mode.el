@@ -63,6 +63,7 @@
 	(define-key m (kbd "C-c C-n")   #'tne-add-segment-at-insertion-point)
 	(define-key m (kbd "C-c C-m 1")   #'tne-new-document)
 	(define-key m (kbd "C-c C-m 2")   #'tne-load-lorem-ipsum)
+	(define-key m (kbd "TAB") #'tne-segment-entry-tab-dispatch)
 	m))
 
 (defun tne-list-all-segments ()
