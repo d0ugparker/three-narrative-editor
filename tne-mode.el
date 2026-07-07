@@ -285,10 +285,12 @@ installed without restarting Emacs."
   (let ((collection (tne-current-collapsed-collection)))
     (if collection
         (message
-         "Collapsed collection: Owners=%s Expanded=%s DefaultReturnMode=%s"
+         "Collapsed collection: Owners=%s Expanded=%s DefaultReturnMode=%s RegionCount=%s"
          (tne-collapsed-collection-owners collection)
          (tne-collapsed-collection-expanded-p collection)
-         (tne-collapsed-collection-default-return-mode collection))
+         (tne-collapsed-collection-default-return-mode collection)
+         (length
+          (tne-collapsed-collection-regions collection)))
 
       (message
        "Collapsed collection: none"))))
@@ -553,6 +555,60 @@ This is a development helper. It does not yet affect rendering."
     :regions nil))
   (message
    "Test collapsed collection created: Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=nil"))
+
+(defun tne-reset-test-collapsed-display-state ()
+  "Reset test collapsed display state.
+
+This is a development helper. It creates a test collapsed collection
+for N4 through N6 and adds one default viewfinder region."
+  (interactive)
+  (tne-set-collapsed-collection
+   (make-tne-collapsed-collection
+    :owners '(n4 n5 n6)
+    :expanded-p nil
+    :default-return-mode 'follow-latest-entered
+    :regions nil))
+
+  (tne-add-viewfinder-region
+   (make-tne-viewfinder-region
+    :id 1
+    :column 19
+    :width 12
+    :return-mode 'follow-latest-entered
+    :locked-segment-id nil))
+
+  (tne-add-viewfinder-region
+   (make-tne-viewfinder-region
+    :id 2
+    :column 45
+    :width 12
+    :return-mode 'locked-to-selected
+    :locked-segment-id 17))
+
+  (message
+   "Test collapsed display reset: Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=2"))
+
+(defun tne-show-collapsed-display-state ()
+  "Show the current collapsed display state."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (let ((regions
+               (tne-collapsed-collection-regions collection)))
+          (message
+           "Collapsed display: Owners=%s Expanded=%s DefaultReturnMode=%s Regions=%s"
+           (tne-collapsed-collection-owners collection)
+           (tne-collapsed-collection-expanded-p collection)
+           (tne-collapsed-collection-default-return-mode collection)
+           (if regions
+               (mapconcat
+                #'tne-format-viewfinder-region
+                regions
+                " | ")
+             "none")))
+
+      (message
+       "Collapsed display: none"))))
 
 (defun tne-find-segment-by-id (id)
 
