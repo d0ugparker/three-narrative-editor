@@ -61,8 +61,8 @@
 	(define-key m (kbd "C-c C-s")   #'tne-show-range-status)
 	(define-key m (kbd "C-c C-g")   #'tne-goto-insertion-point)
 	(define-key m (kbd "C-c C-n")   #'tne-add-segment-at-insertion-point)
-	(define-key m (kbd "C-c C-m 1")   #'tne-new-document)
-	(define-key m (kbd "C-c C-m 2")   #'tne-load-lorem-ipsum)
+	(global-set-key (kbd "C-c C-v 1")  'tne-new-document)
+	(global-set-key (kbd "C-c C-v 2")  'tne-load-lorem-ipsum)
 	m))
 
 (defun tne-install-keybindings ()
@@ -256,6 +256,107 @@ installed without restarting Emacs."
        (format
         "Pair History Count=%s\n"
         (length tne-pair-history))))))
+
+(defun tne-current-collapsed-collection ()
+  "Return the current collapsed collection, if any."
+  tne-current-collapsed-collection)
+
+
+(defun tne-collapsed-collection-present-p ()
+  "Return non-nil when a collapsed collection is present."
+  (not (null (tne-current-collapsed-collection))))
+
+
+(defun tne-set-collapsed-collection (collection)
+  "Set the current collapsed COLLECTION."
+  (setq tne-current-collapsed-collection collection))
+
+
+(defun tne-clear-collapsed-collection ()
+  "Clear the current collapsed collection."
+  (interactive)
+  (tne-set-collapsed-collection nil)
+  (message
+   "Collapsed collection cleared."))
+
+(defun tne-show-collapsed-collection ()
+  "Show the current collapsed collection state."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (message
+         "Collapsed collection: Owners=%s Expanded=%s DefaultReturnMode=%s"
+         (tne-collapsed-collection-owners collection)
+         (tne-collapsed-collection-expanded-p collection)
+         (tne-collapsed-collection-default-return-mode collection))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-expand-collapsed-collection ()
+  "Mark the current collapsed collection as expanded."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (progn
+          (setf (tne-collapsed-collection-expanded-p collection) t)
+          (message
+           "Collapsed collection expanded: Owners=%s"
+           (tne-collapsed-collection-owners collection)))
+
+      (message
+       "Collapsed collection: none"))))
+
+
+(defun tne-collapse-collapsed-collection ()
+  "Mark the current collapsed collection as collapsed."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (progn
+          (setf (tne-collapsed-collection-expanded-p collection) nil)
+          (message
+           "Collapsed collection collapsed: Owners=%s"
+           (tne-collapsed-collection-owners collection)))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-set-collapsed-collection-default-return-mode ()
+  "Set the default return mode for the current collapsed collection."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (let* ((choices
+                '("follow-latest-entered"
+                  "follow-first-entered"
+                  "locked-to-selected"))
+
+               (current
+                (symbol-name
+                 (tne-collapsed-collection-default-return-mode collection)))
+
+               (selected
+                (intern
+                 (completing-read
+                  "Default return mode: "
+                  choices
+                  nil
+                  t
+                  nil
+                  nil
+                  current))))
+
+          (setf
+           (tne-collapsed-collection-default-return-mode collection)
+           selected)
+
+          (message
+           "Collapsed collection default return mode: %s"
+           selected))
+
+      (message
+       "Collapsed collection: none"))))
 
 (defun tne-find-segment-by-id (id)
 

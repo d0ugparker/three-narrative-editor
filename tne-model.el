@@ -69,7 +69,25 @@
   rows
   screen-row-start
   screen-row-end)
+(cl-defstruct tne-collapsed-collection
+  "A collapsed display collection for narrative lines beyond the default visible lines.
+
+A collapsed collection represents real narrative owners such as N4, N5,
+N6, and beyond while they are displayed through a compact one-line
+viewfinder projection.
+
+The narrative owners remain real owners in the model. The collapsed
+collection is a display/projection structure, not a replacement for
+the underlying narrative lines."
+  owners
+  expanded-p
+  default-return-mode)
 (defvar-local tne-current-document nil)
+(defvar tne-current-collapsed-collection nil
+  "Current collapsed collection for narrative lines beyond the default visible lines.
+
+This is an early model hook. It records the existence and state of a
+collapsed collection, but does not yet control rendering.")
 (defvar tne-next-segment-id 1)
 (defvar tne-next-relationship-id 1)
 (defvar tne-next-document-id 1)
