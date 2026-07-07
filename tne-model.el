@@ -69,6 +69,7 @@
   rows
   screen-row-start
   screen-row-end)
+
 (cl-defstruct tne-collapsed-collection
   "A collapsed display collection for narrative lines beyond the default visible lines.
 
@@ -81,7 +82,24 @@ collection is a display/projection structure, not a replacement for
 the underlying narrative lines."
   owners
   expanded-p
-  default-return-mode)
+  default-return-mode
+  regions)
+
+(cl-defstruct tne-viewfinder-region
+  "A visible region inside a collapsed collection's one-line viewfinder display.
+
+A viewfinder region is a display/projection object. It may show a
+selected representative segment from one of the collapsed narrative
+owners while the collection is collapsed.
+
+The underlying segment remains owned by its canonical narrative owner,
+such as N4, N5, or N6."
+  id
+  column
+  width
+  return-mode
+  locked-segment-id)
+
 (defvar-local tne-current-document nil)
 (defvar tne-current-collapsed-collection nil
   "Current collapsed collection for narrative lines beyond the default visible lines.

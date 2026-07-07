@@ -358,6 +358,202 @@ installed without restarting Emacs."
       (message
        "Collapsed collection: none"))))
 
+(defun tne-add-viewfinder-region (region)
+  "Add REGION to the current collapsed collection."
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (setf
+         (tne-collapsed-collection-regions collection)
+         (append
+          (tne-collapsed-collection-regions collection)
+          (list region)))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-show-viewfinder-regions ()
+  "Show the viewfinder regions in the current collapsed collection."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (let ((regions
+               (tne-collapsed-collection-regions collection)))
+          (if regions
+              (message
+               "Viewfinder regions: %s"
+               (mapconcat
+                #'tne-format-viewfinder-region
+                regions
+                " | "))
+
+            (message
+             "Viewfinder regions: none")))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-format-viewfinder-region (region)
+  "Return a readable summary string for REGION."
+  (format
+   "ID=%s Column=%s Width=%s ReturnMode=%s LockedSegment=%s"
+   (tne-viewfinder-region-id region)
+   (tne-viewfinder-region-column region)
+   (tne-viewfinder-region-width region)
+   (tne-viewfinder-region-return-mode region)
+   (tne-viewfinder-region-locked-segment-id region)))
+
+(defun tne-create-viewfinder-region ()
+  "Create and add a viewfinder region to the current collapsed collection."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (let* ((id
+                (read-number
+                 "Viewfinder region ID: "))
+
+               (column
+                (read-number
+                 "Column: "))
+
+               (width
+                (read-number
+                 "Width: "))
+
+               (choices
+                '("follow-latest-entered"
+                  "follow-first-entered"
+                  "locked-to-selected"))
+
+               (return-mode
+                (intern
+                 (completing-read
+                  "Return mode: "
+                  choices
+                  nil
+                  t
+                  nil
+                  nil
+                  (symbol-name
+                   (tne-collapsed-collection-default-return-mode
+                    collection)))))
+
+               (locked-segment-id
+                (if (eq return-mode 'locked-to-selected)
+                    (read-number
+                     "Locked segment ID: ")
+
+                  nil))
+
+               (region
+                (make-tne-viewfinder-region
+                 :id id
+                 :column column
+                 :width width
+                 :return-mode return-mode
+                 :locked-segment-id locked-segment-id)))
+
+          (tne-add-viewfinder-region region)
+
+          (message
+           "Viewfinder region added: %s"
+           (tne-format-viewfinder-region region)))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-find-viewfinder-region-by-id (id)
+  "Return the viewfinder region with ID in the current collapsed collection."
+  (let ((collection (tne-current-collapsed-collection)))
+    (when collection
+      (cl-find-if
+       (lambda (region)
+         (= (tne-viewfinder-region-id region)
+            id))
+       (tne-collapsed-collection-regions collection)))))
+
+(defun tne-set-viewfinder-region-return-mode ()
+  "Set the return mode for a viewfinder region."
+  (interactive)
+  (let* ((id
+          (read-number
+           "Viewfinder region ID: "))
+
+         (region
+          (tne-find-viewfinder-region-by-id id)))
+
+    (if region
+        (let* ((choices
+                '("follow-latest-entered"
+                  "follow-first-entered"
+                  "locked-to-selected"))
+
+               (current
+                (symbol-name
+                 (tne-viewfinder-region-return-mode region)))
+
+               (return-mode
+                (intern
+                 (completing-read
+                  "Return mode: "
+                  choices
+                  nil
+                  t
+                  nil
+                  nil
+                  current)))
+
+               (locked-segment-id
+                (if (eq return-mode 'locked-to-selected)
+                    (read-number
+                     "Locked segment ID: ")
+
+                  nil)))
+
+          (setf
+           (tne-viewfinder-region-return-mode region)
+           return-mode)
+
+          (setf
+           (tne-viewfinder-region-locked-segment-id region)
+           locked-segment-id)
+
+          (message
+           "Viewfinder region updated: %s"
+           (tne-format-viewfinder-region region)))
+
+      (message
+       "Viewfinder region not found: %s"
+       id))))
+
+(defun tne-clear-viewfinder-regions ()
+  "Clear all viewfinder regions from the current collapsed collection."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (progn
+          (setf
+           (tne-collapsed-collection-regions collection)
+           nil)
+          (message
+           "Viewfinder regions cleared."))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-create-test-collapsed-collection ()
+  "Create a test collapsed collection for N4 through N6.
+
+This is a development helper. It does not yet affect rendering."
+  (interactive)
+  (tne-set-collapsed-collection
+   (make-tne-collapsed-collection
+    :owners '(n4 n5 n6)
+    :expanded-p nil
+    :default-return-mode 'follow-latest-entered
+    :regions nil))
+  (message
+   "Test collapsed collection created: Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=nil"))
+
 (defun tne-find-segment-by-id (id)
 
   (or
