@@ -261,21 +261,22 @@ installed without restarting Emacs."
   "Return the current collapsed collection, if any."
   tne-current-collapsed-collection)
 
-
 (defun tne-collapsed-collection-present-p ()
   "Return non-nil when a collapsed collection is present."
   (not (null (tne-current-collapsed-collection))))
-
 
 (defun tne-set-collapsed-collection (collection)
   "Set the current collapsed COLLECTION."
   (setq tne-current-collapsed-collection collection))
 
+(defun tne-clear-collapsed-collection-object ()
+  "Clear the current collapsed collection object."
+  (tne-set-collapsed-collection nil))
 
 (defun tne-clear-collapsed-collection ()
   "Clear the current collapsed collection."
   (interactive)
-  (tne-set-collapsed-collection nil)
+  (tne-clear-collapsed-collection-object)
   (message
    "Collapsed collection cleared."))
 
@@ -562,6 +563,8 @@ This is a development helper. It does not yet affect rendering."
 This is a development helper. It creates a test collapsed collection
 for N4 through N6 and adds one default viewfinder region."
   (interactive)
+  (tne-set-display-mode 'stack-in-viewfinder)
+  (tne-clear-display-choice-object)
   (tne-set-collapsed-collection
    (make-tne-collapsed-collection
     :owners '(n4 n5 n6)
@@ -586,7 +589,7 @@ for N4 through N6 and adds one default viewfinder region."
     :locked-segment-id 17))
 
   (message
-   "Test collapsed display reset: Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=2"))
+    "Test collapsed display reset: Mode=stack-in-viewfinder Choice=none Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=2"))
 
 (defun tne-show-collapsed-display-state ()
   "Show the current collapsed display state."
@@ -2398,8 +2401,9 @@ This does not change the current RE display mode."
   (interactive)
   (tne-set-display-mode 'stack-in-viewfinder)
   (tne-clear-display-choice-object)
+  (tne-clear-collapsed-collection-object)
   (message
-   "Display state reset: Mode=stack-in-viewfinder Choice=none"))
+   "Display state reset: Mode=stack-in-viewfinder Choice=none CollapsedCollection=none"))
 
 (defun tne-show-placement-choice ()
   "Compatibility wrapper for `tne-show-display-choice'."
@@ -2418,21 +2422,26 @@ This does not change the current RE display mode."
      "Display mode: none")))
 
 (defun tne-show-display-state ()
-  "Show the current RE display mode and blocked-placement choice state."
+  "Show the current RE display state."
   (interactive)
-  (let ((choice (tne-current-display-choice)))
-    (if choice
-        (message
-         "Display state: Mode=%s Choice=present Requested=%s Anchor=%s Column=%s Reason=%s"
-         (tne-current-display-mode)
-         (tne-placement-choice-requested-owner choice)
-         (tne-placement-choice-anchor-owner choice)
-         (tne-placement-choice-column choice)
-         (tne-placement-choice-reason choice))
-
-      (message
-       "Display state: Mode=%s Choice=none"
-       (tne-current-display-mode)))))
+  (let ((choice (tne-current-display-choice))
+        (collection (tne-current-collapsed-collection)))
+    (message
+     "Display state: Mode=%s Choice=%s CollapsedCollection=%s Expanded=%s RegionCount=%s"
+     (tne-current-display-mode)
+     (if choice
+         "present"
+       "none")
+     (if collection
+         "present"
+       "none")
+     (if collection
+         (tne-collapsed-collection-expanded-p collection)
+       "n/a")
+     (if collection
+         (length
+          (tne-collapsed-collection-regions collection))
+       0))))
 
 (defun tne-display-choice-present-p ()
   "Return non-nil when a blocked-placement display choice is present."
