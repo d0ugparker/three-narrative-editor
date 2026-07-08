@@ -748,12 +748,16 @@ collapsed collection."
    (tne-viewfinder-region-locked-segment-id region)
    (tne-latest-segment-id-for-collapsed-collection)))
 
+(defun tne-viewfinder-region-collapsed-representative-id (region)
+  "Return the segment ID REGION represents while collapsed."
+  (tne-viewfinder-region-collapsed-segment-id region))
+
 (defun tne-format-viewfinder-region-collapsed-display (region)
   "Return a readable collapsed-display summary for REGION."
   (format
-   "ID=%s CollapsedSegment=%s ReturnMode=%s LockedSegment=%s"
+   "ID=%s CollapsedRepresentative=%s ReturnMode=%s LockedSegment=%s"
    (tne-viewfinder-region-id region)
-   (tne-viewfinder-region-collapsed-segment-id region)
+   (tne-viewfinder-region-collapsed-representative-id region)
    (tne-viewfinder-region-return-mode region)
    (tne-viewfinder-region-locked-segment-id region)))
 
@@ -766,17 +770,22 @@ collapsed collection."
                (tne-collapsed-collection-regions collection)))
           (if regions
               (message
-               "Collapsed displays: %s"
+               "Collapsed representatives: %s"
                (mapconcat
                 #'tne-format-viewfinder-region-collapsed-display
                 regions
                 " | "))
 
             (message
-             "Collapsed displays: none")))
+             "Collapsed representatives: none")))
 
       (message
        "Collapsed collection: none"))))
+
+(defun tne-show-viewfinder-collapsed-representatives ()
+  "Show what each viewfinder region represents while collapsed."
+  (interactive)
+  (tne-show-viewfinder-collapsed-displays))
 
 (defun tne-find-segment-by-id (id)
 
