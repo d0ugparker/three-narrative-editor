@@ -684,6 +684,47 @@ Unlocked regions currently return to follow-latest-entered mode."
       (message
        "No focused viewfinder region."))))
 
+(defun tne-toggle-viewfinder-region-latest-lock (region)
+  "Toggle REGION between following latest and locking the latest segment."
+  (let ((latest-id
+         (tne-latest-segment-id-for-collapsed-collection)))
+
+    (cond
+
+     ((not latest-id)
+      (message
+       "No latest segment is available."))
+
+     ((and
+       (eq (tne-viewfinder-region-return-mode region)
+           'locked-to-selected)
+       (equal
+        (tne-viewfinder-region-locked-segment-id region)
+        latest-id))
+      (tne-unlock-viewfinder-region-object region)
+      (message
+       "Viewfinder region now follows latest: Region=%s LatestSegment=%s"
+       (tne-viewfinder-region-id region)
+       latest-id))
+
+     ((tne-viewfinder-region-showing-latest-p region)
+      (tne-lock-viewfinder-region-object-to-segment
+       region
+       latest-id)
+      (message
+       "Viewfinder region locked to latest: Region=%s Segment=%s"
+       (tne-viewfinder-region-id region)
+       latest-id))
+
+     (t
+      (message
+       (concat
+        "Viewfinder region is not showing latest; "
+        "no toggle performed. Region=%s Representative=%s LatestSegment=%s")
+       (tne-viewfinder-region-id region)
+       (tne-viewfinder-region-collapsed-representative-id region)
+       latest-id)))))
+
 (defun tne-clear-viewfinder-regions ()
   "Clear all viewfinder regions from the current collapsed collection."
   (interactive)
@@ -698,6 +739,34 @@ Unlocked regions currently return to follow-latest-entered mode."
 
       (message
        "Collapsed collection: none"))))
+
+(defun tne-toggle-viewfinder-region-latest-lock-by-id ()
+  "Toggle a viewfinder region between locking and following latest."
+  (interactive)
+  (let* ((region-id
+          (read-number
+           "Viewfinder region ID: "))
+
+         (region
+          (tne-find-viewfinder-region-by-id region-id)))
+
+    (if region
+        (tne-toggle-viewfinder-region-latest-lock region)
+
+      (message
+       "Viewfinder region not found: %s"
+       region-id))))
+
+(defun tne-toggle-focused-viewfinder-region-latest-lock ()
+  "Toggle the focused viewfinder region between locking and following latest."
+  (interactive)
+  (let ((region
+         (tne-focused-viewfinder-region)))
+    (if region
+        (tne-toggle-viewfinder-region-latest-lock region)
+
+      (message
+       "No focused viewfinder region."))))
 
 (defun tne-create-test-collapsed-collection ()
   "Create a test collapsed collection for N4 through N6.
@@ -749,7 +818,19 @@ for N4 through N6 and adds one default viewfinder region."
     :locked-segment-id 17))
 
   (message
-    "Test collapsed display reset: Mode=stack-in-viewfinder Choice=none Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=2"))
+   "Test collapsed display reset: Mode=stack-in-viewfinder Choice=none Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=2"))
+
+(defun tne-viewfinder-region-showing-latest-p (region)
+  "Return non-nil when REGION is currently showing the latest segment."
+  (let ((latest-id
+         (tne-latest-segment-id-for-collapsed-collection))
+
+        (representative-id
+         (tne-viewfinder-region-collapsed-representative-id
+          region)))
+    (and latest-id
+         representative-id
+         (= latest-id representative-id))))
 
 (defun tne-show-collapsed-display-state ()
   "Show the current collapsed display state."
