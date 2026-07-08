@@ -411,14 +411,23 @@ expanded collection closes."
       (message
        "Collapsed collection: none"))))
 
-(defun tne-format-viewfinder-region (region)
+(defun tne-format-viewfinder-region (region) ;;;
   "Return a readable summary string for REGION."
   (format
-   "ID=%s Column=%s Width=%s ReturnMode=%s LockedSegment=%s"
+   (concat
+    "ID=%s "
+    "Column=%s "
+    "Width=%s "
+    "ReturnMode=%s "
+    "Locked=%s "
+    "LockedSegment=%s")
    (tne-viewfinder-region-id region)
    (tne-viewfinder-region-column region)
    (tne-viewfinder-region-width region)
    (tne-viewfinder-region-return-mode region)
+   (if (tne-viewfinder-region-locked-p region)
+       "yes"
+     "no")
    (tne-viewfinder-region-locked-segment-id region)))
 
 (defun tne-create-viewfinder-region ()
@@ -752,12 +761,33 @@ collapsed collection."
   "Return the segment ID REGION represents while collapsed."
   (tne-viewfinder-region-collapsed-segment-id region))
 
-(defun tne-format-viewfinder-region-collapsed-display (region)
+(defun tne-viewfinder-region-locked-p (region)
+  "Return non-nil when REGION has a locked segment."
+  (not
+   (null
+    (tne-viewfinder-region-locked-segment-id region))))
+
+(defun tne-viewfinder-region-collapsed-representative-reason
+    (region)
+  "Return why REGION displays its collapsed representative."
+  (if (tne-viewfinder-region-locked-p region)
+      'locked-segment
+    'latest-segment))
+
+(defun tne-format-viewfinder-region-collapsed-display
+    (region)
   "Return a readable collapsed-display summary for REGION."
   (format
-   "ID=%s CollapsedRepresentative=%s ReturnMode=%s LockedSegment=%s"
+   (concat
+    "ID=%s "
+    "CollapsedRepresentative=%s "
+    "RepresentativeReason=%s "
+    "ReturnMode=%s "
+    "LockedSegment=%s")
    (tne-viewfinder-region-id region)
    (tne-viewfinder-region-collapsed-representative-id region)
+   (tne-viewfinder-region-collapsed-representative-reason
+    region)
    (tne-viewfinder-region-return-mode region)
    (tne-viewfinder-region-locked-segment-id region)))
 
