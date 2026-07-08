@@ -286,12 +286,17 @@ installed without restarting Emacs."
   (let ((collection (tne-current-collapsed-collection)))
     (if collection
         (message
-         "Collapsed collection: Owners=%s Expanded=%s DefaultReturnMode=%s RegionCount=%s"
+         (concat
+          "Collapsed collection: "
+          "Owners=%s Expanded=%s "
+          "DefaultReturnMode=%s "
+          "RegionCount=%s FocusedRegion=%s")
          (tne-collapsed-collection-owners collection)
          (tne-collapsed-collection-expanded-p collection)
          (tne-collapsed-collection-default-return-mode collection)
          (length
-          (tne-collapsed-collection-regions collection)))
+          (tne-collapsed-collection-regions collection))
+         (tne-collapsed-collection-focused-region-id collection))
 
       (message
        "Collapsed collection: none"))))
@@ -310,16 +315,24 @@ installed without restarting Emacs."
       (message
        "Collapsed collection: none"))))
 
-
 (defun tne-collapse-collapsed-collection ()
-  "Mark the current collapsed collection as collapsed."
+  "Mark the current collapsed collection as collapsed.
+
+Collapsing the collection also clears the focused viewfinder
+region, because no region remains actively focused after the
+expanded collection closes."
   (interactive)
   (let ((collection (tne-current-collapsed-collection)))
     (if collection
         (progn
-          (setf (tne-collapsed-collection-expanded-p collection) nil)
+          (setf
+           (tne-collapsed-collection-expanded-p collection)
+           nil)
+          (setf
+           (tne-collapsed-collection-focused-region-id collection)
+           nil)
           (message
-           "Collapsed collection collapsed: Owners=%s"
+           "Collapsed collection collapsed: Owners=%s FocusedRegion=nil"
            (tne-collapsed-collection-owners collection)))
 
       (message
@@ -553,7 +566,8 @@ This is a development helper. It does not yet affect rendering."
     :owners '(n4 n5 n6)
     :expanded-p nil
     :default-return-mode 'follow-latest-entered
-    :regions nil))
+    :regions nil
+    :focused-region-id nil))
   (message
    "Test collapsed collection created: Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=nil"))
 
@@ -570,7 +584,8 @@ for N4 through N6 and adds one default viewfinder region."
     :owners '(n4 n5 n6)
     :expanded-p nil
     :default-return-mode 'follow-latest-entered
-    :regions nil))
+    :regions nil
+    :focused-region-id nil))
 
   (tne-add-viewfinder-region
    (make-tne-viewfinder-region
@@ -599,9 +614,15 @@ for N4 through N6 and adds one default viewfinder region."
         (let ((regions
                (tne-collapsed-collection-regions collection)))
           (message
-           "Collapsed display: Owners=%s Expanded=%s DefaultReturnMode=%s Regions=%s"
+           (concat
+            "Collapsed display: "
+            "Owners=%s Expanded=%s "
+            "FocusedRegion=%s "
+            "DefaultReturnMode=%s "
+            "Regions=%s")
            (tne-collapsed-collection-owners collection)
            (tne-collapsed-collection-expanded-p collection)
+           (tne-collapsed-collection-focused-region-id collection)
            (tne-collapsed-collection-default-return-mode collection)
            (if regions
                (mapconcat
@@ -612,6 +633,72 @@ for N4 through N6 and adds one default viewfinder region."
 
       (message
        "Collapsed display: none"))))
+
+(defun tne-set-focused-viewfinder-region (id)
+  "Set the focused viewfinder region to ID."
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (setf
+         (tne-collapsed-collection-focused-region-id collection)
+         id)
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-clear-focused-viewfinder-region ()
+  "Clear the focused viewfinder region.
+
+This does not collapse the collapsed collection. It only clears
+which viewfinder region is currently focused."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (progn
+          (setf
+           (tne-collapsed-collection-focused-region-id collection)
+           nil)
+          (message
+           "Focused viewfinder region cleared."))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-focus-viewfinder-region ()
+  "Focus a viewfinder region by ID.
+
+Focusing a region marks that region as the local entry point.
+It does not limit expansion to that region; expansion remains
+collective for the collapsed collection."
+  (interactive)
+  (let* ((id
+          (read-number
+           "Viewfinder region ID: "))
+
+         (region
+          (tne-find-viewfinder-region-by-id id))
+
+         (collection
+          (tne-current-collapsed-collection)))
+
+    (cond
+
+     ((not collection)
+      (message
+       "Collapsed collection: none"))
+
+     ((not region)
+      (message
+       "Viewfinder region not found: %s"
+       id))
+
+     (t
+      (tne-set-focused-viewfinder-region id)
+      (setf
+       (tne-collapsed-collection-expanded-p collection)
+       t)
+      (message
+       "Viewfinder region focused: %s; collection expanded."
+       id)))))
 
 (defun tne-find-segment-by-id (id)
 
@@ -2427,7 +2514,12 @@ This does not change the current RE display mode."
   (let ((choice (tne-current-display-choice))
         (collection (tne-current-collapsed-collection)))
     (message
-     "Display state: Mode=%s Choice=%s CollapsedCollection=%s Expanded=%s RegionCount=%s"
+     (concat
+      "Display state: "
+      "Mode=%s Choice=%s "
+      "CollapsedCollection=%s "
+      "Expanded=%s RegionCount=%s "
+      "FocusedRegion=%s")
      (tne-current-display-mode)
      (if choice
          "present"
@@ -2441,7 +2533,10 @@ This does not change the current RE display mode."
      (if collection
          (length
           (tne-collapsed-collection-regions collection))
-       0))))
+       0)
+     (if collection
+         (tne-collapsed-collection-focused-region-id collection)
+       "n/a"))))
 
 (defun tne-display-choice-present-p ()
   "Return non-nil when a blocked-placement display choice is present."

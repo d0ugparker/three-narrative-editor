@@ -83,7 +83,8 @@ the underlying narrative lines."
   owners
   expanded-p
   default-return-mode
-  regions)
+  regions
+  focused-region-id)
 
 (cl-defstruct tne-viewfinder-region
   "A visible region inside a collapsed collection's one-line viewfinder display.
