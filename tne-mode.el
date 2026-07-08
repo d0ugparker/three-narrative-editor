@@ -499,6 +499,16 @@ expanded collection closes."
             id))
        (tne-collapsed-collection-regions collection)))))
 
+(defun tne-focused-viewfinder-region ()
+  "Return the currently focused viewfinder region, if any."
+  (let ((collection (tne-current-collapsed-collection)))
+    (when collection
+      (let ((focused-id
+             (tne-collapsed-collection-focused-region-id
+              collection)))
+        (when focused-id
+          (tne-find-viewfinder-region-by-id focused-id))))))
+
 (defun tne-set-viewfinder-region-return-mode ()
   "Set the return mode for a viewfinder region."
   (interactive)
@@ -552,6 +562,127 @@ expanded collection closes."
       (message
        "Viewfinder region not found: %s"
        id))))
+
+(defun tne-lock-viewfinder-region-to-segment ()
+  "Lock a viewfinder region to a selected segment ID."
+  (interactive)
+  (let* ((region-id
+          (read-number
+           "Viewfinder region ID: "))
+
+         (region
+          (tne-find-viewfinder-region-by-id region-id)))
+
+    (if region
+        (let ((segment-id
+               (read-number
+                "Segment ID to display when collapsed: ")))
+
+          (tne-lock-viewfinder-region-object-to-segment
+	   region
+	   segment-id)
+
+          (message
+           "Viewfinder region locked: Region=%s Segment=%s"
+           region-id
+           segment-id))
+
+      (message
+       "Viewfinder region not found: %s"
+       region-id))))
+
+(defun tne-unlock-viewfinder-region ()
+  "Unlock a viewfinder region.
+
+Unlocked regions currently return to follow-latest-entered mode."
+  (interactive)
+  (let* ((region-id
+          (read-number
+           "Viewfinder region ID: "))
+
+         (region
+          (tne-find-viewfinder-region-by-id region-id)))
+
+    (if region
+        (progn
+          (tne-unlock-viewfinder-region-object region)
+
+          (message
+           "Viewfinder region unlocked: Region=%s ReturnMode=follow-latest-entered"
+           region-id))
+
+      (message
+       "Viewfinder region not found: %s"
+       region-id))))
+
+(defun tne-lock-viewfinder-region-object-to-segment
+    (region segment-id)
+  "Lock REGION to SEGMENT-ID for collapsed display."
+  (setf
+   (tne-viewfinder-region-return-mode region)
+   'locked-to-selected)
+  (setf
+   (tne-viewfinder-region-locked-segment-id region)
+   segment-id))
+
+
+(defun tne-unlock-viewfinder-region-object (region)
+  "Unlock REGION for collapsed display.
+
+Unlocked regions currently return to follow-latest-entered mode."
+  (setf
+   (tne-viewfinder-region-return-mode region)
+   'follow-latest-entered)
+  (setf
+   (tne-viewfinder-region-locked-segment-id region)
+   nil))
+
+(defun tne-lock-focused-viewfinder-region-to-segment ()
+  "Lock the focused viewfinder region to a selected segment ID."
+  (interactive)
+  (let ((region
+         (tne-focused-viewfinder-region)))
+    (if region
+        (let* ((region-id
+                (tne-viewfinder-region-id region))
+
+               (segment-id
+                (read-number
+                 "Segment ID to display when collapsed: ")))
+
+          (tne-lock-viewfinder-region-object-to-segment
+	   region
+	   segment-id)
+
+          (message
+           "Focused viewfinder region locked: Region=%s Segment=%s"
+           region-id
+           segment-id))
+
+      (message
+       "No focused viewfinder region."))))
+
+(defun tne-unlock-focused-viewfinder-region ()
+  "Unlock the focused viewfinder region.
+
+Unlocked regions currently return to follow-latest-entered mode."
+  (interactive)
+  (let ((region
+         (tne-focused-viewfinder-region)))
+    (if region
+        (let ((region-id
+               (tne-viewfinder-region-id region)))
+
+          (tne-unlock-viewfinder-region-object region)
+
+          (message
+           (concat
+            "Focused viewfinder region unlocked: "
+            "Region=%s ReturnMode=follow-latest-entered")
+           region-id))
+
+      (message
+       "No focused viewfinder region."))))
 
 (defun tne-clear-viewfinder-regions ()
   "Clear all viewfinder regions from the current collapsed collection."
