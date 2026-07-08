@@ -822,7 +822,53 @@ for N4 through N6 and adds one default viewfinder region."
     :locked-segment-id 17))
 
   (message
-   "Test collapsed display reset: Mode=stack-in-viewfinder Choice=none Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=2"))
+   (concat
+    "Test collapsed display reset: "
+    "Mode=stack-in-viewfinder "
+    "Choice=none "
+    "Owners=(n4 n5 n6) "
+    "Expanded=nil "
+    "FocusedRegion=nil "
+    "FirstSegment=11 "
+    "LatestSegment=23 "
+    "Regions=2 "
+    "Region1=follow-latest-entered "
+    "Region2=locked-to-selected:17")))
+
+(defun tne-verify-test-collapsed-display-state ()
+  "Verify the development test collapsed display state."
+  (interactive)
+  (let* ((region-1
+          (tne-find-viewfinder-region-by-id 1))
+
+         (region-2
+          (tne-find-viewfinder-region-by-id 2))
+
+         (rep-1
+          (when region-1
+            (tne-viewfinder-region-collapsed-representative-id
+             region-1)))
+
+         (rep-2
+          (when region-2
+            (tne-viewfinder-region-collapsed-representative-id
+             region-2))))
+
+    (message
+     (concat
+      "Test collapsed display verification: "
+      "Region1Representative=%s "
+      "Region2Representative=%s "
+      "ExpectedRegion1=23 "
+      "ExpectedRegion2=17 "
+      "Pass=%s")
+     rep-1
+     rep-2
+     (if (and
+          (equal rep-1 23)
+          (equal rep-2 17))
+         "yes"
+       "no"))))
 
 (defun tne-viewfinder-region-showing-latest-p (region)
   "Return non-nil when REGION is currently showing the latest segment."
