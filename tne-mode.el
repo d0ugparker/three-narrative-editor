@@ -292,14 +292,16 @@ installed without restarting Emacs."
           "DefaultReturnMode=%s "
           "RegionCount=%s "
           "FocusedRegion=%s "
-          "LatestSegment=%s")
+          "LatestSegment=%s "
+          "FirstSegment=%s")
          (tne-collapsed-collection-owners collection)
          (tne-collapsed-collection-expanded-p collection)
          (tne-collapsed-collection-default-return-mode collection)
          (length
           (tne-collapsed-collection-regions collection))
          (tne-collapsed-collection-focused-region-id collection)
-         (tne-collapsed-collection-latest-segment-id collection))
+         (tne-collapsed-collection-latest-segment-id collection)
+         (tne-collapsed-collection-first-segment-id collection))
 
       (message
        "Collapsed collection: none"))))
@@ -780,7 +782,8 @@ This is a development helper. It does not yet affect rendering."
     :default-return-mode 'follow-latest-entered
     :regions nil
     :focused-region-id nil
-    :latest-segment-id nil))
+    :latest-segment-id nil
+    :first-segment-id nil))
   (message
    "Test collapsed collection created: Owners=(n4 n5 n6) Expanded=nil DefaultReturnMode=follow-latest-entered Regions=nil"))
 
@@ -799,7 +802,8 @@ for N4 through N6 and adds one default viewfinder region."
     :default-return-mode 'follow-latest-entered
     :regions nil
     :focused-region-id nil
-    :latest-segment-id 23))
+    :latest-segment-id 23
+    :first-segment-id 11))
 
   (tne-add-viewfinder-region
    (make-tne-viewfinder-region
@@ -845,12 +849,14 @@ for N4 through N6 and adds one default viewfinder region."
             "Owners=%s Expanded=%s "
             "FocusedRegion=%s "
             "LatestSegment=%s "
+            "FirstSegment=%s "
             "DefaultReturnMode=%s "
             "Regions=%s")
            (tne-collapsed-collection-owners collection)
            (tne-collapsed-collection-expanded-p collection)
            (tne-collapsed-collection-focused-region-id collection)
            (tne-collapsed-collection-latest-segment-id collection)
+           (tne-collapsed-collection-first-segment-id collection)
            (tne-collapsed-collection-default-return-mode collection)
            (if regions
                (mapconcat
@@ -876,6 +882,25 @@ for N4 through N6 and adds one default viewfinder region."
            id)
           (message
            "Collapsed collection latest segment: %s"
+           id))
+
+      (message
+       "Collapsed collection: none"))))
+
+(defun tne-set-collapsed-collection-first-segment ()
+  "Set the first segment ID for the current collapsed collection."
+  (interactive)
+  (let ((collection (tne-current-collapsed-collection)))
+    (if collection
+        (let ((id
+               (read-number
+                "First segment ID: ")))
+          (setf
+           (tne-collapsed-collection-first-segment-id
+            collection)
+           id)
+          (message
+           "Collapsed collection first segment: %s"
            id))
 
       (message
@@ -956,18 +981,41 @@ real segment creation order."
     (when collection
       (tne-collapsed-collection-latest-segment-id collection))))
 
-(defun tne-viewfinder-region-collapsed-segment-id (region)
+(defun tne-first-segment-id-for-collapsed-collection ()
+  "Return the first-entered segment ID for the current collapsed collection.
+
+This is an early placeholder. Later this should be derived from
+real segment creation order."
+  (let ((collection (tne-current-collapsed-collection)))
+    (when collection
+      (tne-collapsed-collection-first-segment-id collection))))
+
+(defun tne-viewfinder-region-collapsed-segment-id
+    (region)
   "Return the segment ID REGION should display while collapsed.
 
 Current simplified rule:
 
 If REGION has a locked segment ID, use it.
 
-Otherwise, use the latest-entered segment ID for the current
-collapsed collection."
-  (or
-   (tne-viewfinder-region-locked-segment-id region)
-   (tne-latest-segment-id-for-collapsed-collection)))
+Otherwise, follow REGION's return mode.
+
+For now, follow-first-entered uses the collection's first segment
+placeholder, and follow-latest-entered uses the collection's
+latest segment placeholder."
+  (cond
+
+   ((tne-viewfinder-region-locked-p region)
+    (tne-viewfinder-region-locked-segment-id region))
+
+   ((eq (tne-viewfinder-region-return-mode region)
+        'follow-first-entered)
+    (or
+     (tne-first-segment-id-for-collapsed-collection)
+     (tne-latest-segment-id-for-collapsed-collection)))
+
+   (t
+    (tne-latest-segment-id-for-collapsed-collection))))
 
 (defun tne-viewfinder-region-collapsed-representative-id (region)
   "Return the segment ID REGION represents while collapsed."
@@ -982,9 +1030,17 @@ collapsed collection."
 (defun tne-viewfinder-region-collapsed-representative-reason
     (region)
   "Return why REGION displays its collapsed representative."
-  (if (tne-viewfinder-region-locked-p region)
-      'locked-segment
-    'latest-segment))
+  (cond
+
+   ((tne-viewfinder-region-locked-p region)
+    'locked-segment)
+
+   ((eq (tne-viewfinder-region-return-mode region)
+        'follow-first-entered)
+    'first-segment)
+
+   (t
+    'latest-segment)))
 
 (defun tne-format-viewfinder-region-collapsed-display
     (region)
@@ -2849,7 +2905,8 @@ This does not change the current RE display mode."
       "CollapsedCollection=%s "
       "Expanded=%s RegionCount=%s "
       "FocusedRegion=%s "
-      "LatestSegment=%s")
+      "LatestSegment=%s "
+      "FirstSegment=%s")
      (tne-current-display-mode)
      (if choice
          "present"
@@ -2869,6 +2926,9 @@ This does not change the current RE display mode."
        "n/a")
      (if collection
          (tne-collapsed-collection-latest-segment-id collection)
+       "n/a")
+     (if collection
+         (tne-collapsed-collection-first-segment-id collection)
        "n/a"))))
 
 (defun tne-display-choice-present-p ()
