@@ -131,3 +131,46 @@ database.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## Hierarchical Rendering
+
+Rendering proceeds hierarchically.
+
+Document
+
+↓
+
+Narrative Display Blocks
+
+↓
+
+Narratives
+
+↓
+
+Ranges
+
+Each rendering function should normally be responsible for exactly one
+level of this hierarchy.
+
+This minimizes coupling and simplifies future renderer extensions.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## Canonical Narrative Reflow
+
+Narrative wrapping shall be computed by the Relationship Editor.
+
+Emacs visual line wrapping shall not create substitute continuation
+rows.
+
+The renderer divides complete narrative representations into physical
+Narrative Display Blocks while preserving exact text and model offsets.
+
+-------------------------------------------------------------------------------
+

@@ -3196,12 +3196,23 @@ only while this state is non-nil."
   "Non-nil while TNE is rebuilding the visible buffer.")
 
 (defun tne-n1-buffer-text ()
-  "Return the text currently displayed on the physical N1 line."
+  "Reconstruct N1 text from all rendered N1 display rows."
   (save-excursion
     (goto-char (point-min))
-    (buffer-substring-no-properties
-     (line-beginning-position)
-     (line-end-position))))
+
+    (let ((parts nil))
+      (while (not (eobp))
+        (push
+         (buffer-substring-no-properties
+          (line-beginning-position)
+          (line-end-position))
+         parts)
+
+        ;; Skip N2, N3, and the divider to reach the next N1 row.
+        (forward-line 4))
+
+      (apply #'concat
+             (nreverse parts)))))
 
 (defun tne-sync-n1-to-model (&rest _change)
   "Synchronize visible N1 text into the current document model.
@@ -3215,6 +3226,184 @@ visible buffer synchronized."
     (setf
      (tne-document-narrative-1 tne-current-document)
      (tne-n1-buffer-text))))
+
+(defun tne-narrative-display-width ()
+  "Return the usable narrative width in character columns.
+
+Displayed line numbers consume columns that `window-text-width' may
+still include.  Reserve those columns, plus one safety column, so an N1
+row never soft-wraps inside a Narrative Display Block."
+  (max 1
+       (-
+        (window-text-width)
+        (line-number-display-width)
+        1)))
+
+
+(defun tne-wrap-narrative-text (text width)
+  "Divide TEXT into display strings no wider than WIDTH.
+
+Whitespace used at a wrap boundary remains in the preceding string so
+concatenating the returned strings reproduces TEXT exactly."
+  (if (string-empty-p text)
+      (list "")
+
+    (let ((start 0)
+          (length (length text))
+          (result nil))
+
+      (while (< start length)
+        (let* ((remaining (- length start))
+               (maximum-end
+                (min length (+ start width)))
+               (end maximum-end))
+
+          (when (< maximum-end length)
+            (let ((search maximum-end)
+                  (boundary nil))
+
+              (while (and (> search start)
+                          (not boundary))
+                (when (memq (aref text (1- search))
+                            '(?\s ?\t))
+                  (setq boundary search))
+
+                (setq search (1- search)))
+
+              (when boundary
+                (setq end boundary))))
+
+          ;; A word longer than WIDTH is divided at WIDTH.
+          (when (= end start)
+            (setq end maximum-end))
+
+          (push (substring text start end)
+                result)
+
+          (setq start end)))
+
+      (nreverse result))))
+
+
+(defun tne-n1-display-row-p ()
+  "Return non-nil when point is on an N1 display row."
+  (= (% (1- (line-number-at-pos)) 4)
+     0))
+
+
+(defun tne-buffer-position-to-n1-offset (&optional position)
+  "Convert buffer POSITION to its zero-based N1 model offset.
+
+POSITION defaults to point.  Positions outside an N1 row are clamped to
+the nearest preceding N1 content offset."
+  (save-excursion
+    (goto-char (or position (point)))
+
+    (let ((target-line (line-number-at-pos))
+          (target-column (current-column))
+          (offset 0)
+          (line-number 1))
+
+      (goto-char (point-min))
+
+      (while (< line-number target-line)
+        (when (= (% (1- line-number) 4) 0)
+          (setq offset
+                (+ offset
+                   (- (line-end-position)
+                      (line-beginning-position)))))
+
+        (forward-line 1)
+        (setq line-number (1+ line-number)))
+
+      (when (= (% (1- target-line) 4) 0)
+        (setq offset
+              (+ offset
+                 (min target-column
+                      (- (line-end-position)
+                         (line-beginning-position))))))
+
+      offset)))
+
+
+(defun tne-n1-offset-to-buffer-position (offset)
+  "Return the buffer position representing zero-based N1 OFFSET."
+  (save-excursion
+    (goto-char (point-min))
+
+    (let ((remaining (max 0 offset))
+          (found nil)
+          (position (point-min)))
+
+      (while (and (not found)
+                  (not (eobp)))
+        (let ((row-length
+               (- (line-end-position)
+                  (line-beginning-position))))
+
+          (if (<= remaining row-length)
+              (progn
+                (setq position
+                      (+ (line-beginning-position)
+                         remaining))
+                (setq found t))
+
+            (setq remaining
+                  (- remaining row-length))
+
+            ;; Move from this N1 row to the next block's N1 row.
+            (forward-line 4))))
+
+      (unless found
+        (setq position
+              (line-end-position)))
+
+      position)))
+
+
+(defun tne-render-display-block
+    (n1-text n2-text n3-text &optional divider-p)
+  "Insert one Narrative Display Block.
+
+N1-TEXT, N2-TEXT, and N3-TEXT are the visible narrative rows.
+When DIVIDER-P is non-nil, insert a blank divider row after N3."
+  (insert n1-text "\n")
+  (insert n2-text "\n")
+  (insert n3-text "\n")
+
+  (when divider-p
+    (insert "\n")))
+
+
+(defun tne-render-document (document)
+  "Insert DOCUMENT as one or more Narrative Display Blocks."
+  (let* ((width
+          (tne-narrative-display-width))
+
+         (n1-parts
+          (tne-wrap-narrative-text
+           (tne-document-narrative-1 document)
+           width))
+
+         (n2-text
+          (tne-render-segments
+           (tne-document-n2-segments document)))
+
+         (n3-text
+          (tne-render-segments
+           (tne-document-n3-segments document)))
+
+         (first-block-p t))
+
+    (dolist (n1-part n1-parts)
+      (tne-render-display-block
+       n1-part
+       (if first-block-p n2-text "")
+       (if first-block-p n3-text "")
+       t)
+
+      (setq first-block-p nil))))
+
 
 (defun tne-redraw ()
   "Rebuild the visible TNE buffer from the current document model."
@@ -3231,7 +3420,7 @@ visible buffer synchronized."
             tne-current-document)))
          (saved-n1-offset
           (min
-           (max 0 (- (point) (point-min)))
+           (tne-buffer-position-to-n1-offset)
            n1-length)))
 
     (setq tne-layout-records nil)
@@ -3241,26 +3430,12 @@ visible buffer synchronized."
     (let ((buffer-undo-list t))
       (erase-buffer)
 
-      (insert
-       (tne-document-narrative-1
-        tne-current-document)
-       "\n")
-
-      (insert
-       (tne-render-segments
-        (tne-document-n2-segments
-         tne-current-document))
-       "\n")
-
-      (insert
-       (tne-render-segments
-        (tne-document-n3-segments
-         tne-current-document))
-       "\n"))
+      (tne-render-document
+       tne-current-document))
 
     (goto-char
-     (+ (point-min)
-        saved-n1-offset))))
+     (tne-n1-offset-to-buffer-position
+      saved-n1-offset))))
 
 (defun tne-delete-segment (n)
   (let ((c (read-number "Delete segment at column: ")))
@@ -3574,6 +3749,10 @@ after the restored insertion."
   "Major mode for the Three-Narrative Relationship Editor."
 
   (setq buffer-read-only nil)
+
+  ;; Narrative continuation is rendered through physical Narrative
+  ;; Display Blocks.  Emacs must not add visual continuation rows.
+  (setq-local truncate-lines t)
 
   (unless tne-current-document
     (setq tne-current-document

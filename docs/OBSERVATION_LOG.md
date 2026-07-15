@@ -660,3 +660,40 @@ and the insertion-point consequence of the conceptual operation.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Large architectural changes should be implemented as sequences of
+behavior-preserving refactorings followed by small behavioral changes.
+
+Keeping each intermediate state working simplifies debugging, testing,
+and future maintenance.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Narrative continuation must be controlled by the Relationship Editor
+rather than by Emacs visual line wrapping.
+
+Emacs visual continuations create screen rows that resemble document
+structure without belonging to the canonical Narrative Display Block
+layout.
+
+Observation:
+
+Available narrative width must account for display elements such as line
+numbers that may consume columns without being excluded from Emacs's
+reported window text width.
+
+-------------------------------------------------------------------------------
+

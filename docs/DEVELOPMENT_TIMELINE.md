@@ -41,3 +41,26 @@ Block wrapping can be implemented.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## 260715 — Narrative Display Block Rendering
+
+Implemented the first canonical Narrative Display Block renderer.
+
+Confirmed behavior:
+
+- each block contains N1, N2, N3, and a blank divider row,
+- long N1 text wraps through physical N1 rows on lines 1, 5, 9, and
+  subsequent block positions,
+- wrapping occurs at word boundaries when possible,
+- line-number display width is accounted for,
+- Emacs visual continuation rows are suppressed,
+- redraw preserves the complete N1 text,
+- and the insertion point returns to its corresponding N1 position.
+
+Live reblocking during ordinary typing remains the next implementation
+step.
+
+-------------------------------------------------------------------------------
+
