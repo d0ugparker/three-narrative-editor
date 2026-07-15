@@ -259,13 +259,14 @@ n3 returns n4."
           (1+ tne-next-relationship-id))))
 
 (defun tne-model-create-default ()
+  "Create a new blank TNE document."
   (make-tne-document
 
    :id
    (tne-generate-document-id)
 
    :narrative-1
-   "Narrative 1"))
+   ""))
 
 (defun tne-segment-end-column (segment)
   (+ (tne-segment-start-column segment)

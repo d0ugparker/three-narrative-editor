@@ -22,3 +22,45 @@ Implementation details are expected to evolve.
 
 These axioms are intended to outlive any particular implementation.
 
+
+## Progressive Relationship Exploration
+
+The Relationship Editor reveals relationships one level of recognition
+at a time.
+
+The editor never expands the complete relationship graph
+automatically.
+
+The user's attention determines which neighborhood of the graph is
+revealed.
+
+
+-------------------------------------------------------------------------------
+
+## User Intent
+
+The Relationship Editor continuously represents the destination of the
+user's current intent.
+
+Presentation exists to communicate that destination clearly.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## Recognition
+
+The fundamental persistent act performed within the Relationship Editor
+is recognition.
+
+Ranges represent recognized portions of narratives.
+
+Relationships represent recognized connections among those Ranges.
+
+The editor preserves recognition.
+
+It neither discovers nor infers recognition on the user's behalf.
+
+-------------------------------------------------------------------------------
+

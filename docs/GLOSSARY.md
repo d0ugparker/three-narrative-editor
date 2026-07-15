@@ -15,3 +15,107 @@ A structural presentation of the same underlying representation without changing
 ## Recognition
 
 A human event in which previously unrecognized structure becomes recognized.
+
+## Narrative Display Block
+
+A displayed N1 line together with its associated N2 line,
+N3 line, and divider line.
+
+Narrative Display Blocks are the repeating visual units used
+by the renderer.
+
+
+## Boundary
+
+The logical left or right extent of a Range within its owning narrative.
+
+Boundaries identify represented content.
+
+They are projected by the Layout Manager into displayed margins.
+
+## Margin
+
+The visible left or right editing limit presented to the user.
+
+Margins are the presentation of Range boundaries.
+
+
+## Boundary-Side Focus
+
+The temporary editing state that determines which side of a Range
+boundary owns the next edit.
+
+Repeated clicking at the same boundary toggles focus between the Range
+and the adjacent non-Range content.
+
+
+## Wholesale Range Deletion
+
+The confirmed retirement of an existing Range after all of its
+represented characters have been selected for deletion.
+
+The former text remains as strikethrough content, while the Range
+definition and its Relationships are removed.
+
+## Unlinked Content
+
+Narrative content that remains after a former Relationship has been
+removed.
+
+Unlinked content retains its text, narrative ownership, geometry, and
+display location.
+
+
+## Deleted-Range Record
+
+A persistent historical record created when an existing Range is
+retired through confirmed wholesale deletion.
+
+It preserves the former Range identity, geometry, content reference, and
+Relationship information without participating in the active
+Relationship structure.
+
+## Deleted-Range List
+
+The inspectable collection of deleted-Range records retained by the
+document.
+
+## Historical Relationship
+
+A former Relationship preserved in a deleted-Range record for reference,
+inspection, and undo.
+
+A historical Relationship is not part of the active Relationship graph.
+
+
+## Historical Relationship Highlighting
+
+Red highlighting displayed when the user Shift-clicks a deleted
+struck-through Range.
+
+It identifies the former Range and its immediately related archived
+Ranges without restoring the removed Relationships.
+
+
+## Relationship Cardinality
+
+The number and structural arrangement of Ranges participating in a
+Relationship, including one-to-one, one-to-many, many-to-one, and
+many-to-many.
+
+Cardinality does not determine semantic meaning.
+
+## Relationship Direction
+
+An optional structural orientation among participating Ranges.
+
+Direction does not inherently mean support, causation, agreement,
+contradiction, or hierarchy.
+
+## Relationship Type
+
+Optional descriptive metadata that classifies a Relationship according
+to a user-defined or domain-defined vocabulary.
+
+A Relationship does not require a type to be valid.
+

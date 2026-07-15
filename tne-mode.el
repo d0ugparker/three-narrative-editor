@@ -76,6 +76,11 @@ installed without restarting Emacs."
   (define-key tne-mode-map (kbd "C-c C-b s") #'tne-set-range-b-from-selection)
   (define-key tne-mode-map (kbd "C-c C-s") #'tne-show-range-status)
 
+  ;; RE-specific undo and redo restore both model state and the
+  ;; insertion-point consequences of the conceptual operation.
+  (define-key tne-mode-map (kbd "C-/") #'tne-undo)
+  (define-key tne-mode-map (kbd "C-?") #'tne-redo)
+
   ;; macOS Option-TAB arrives in Emacs as M-<tab>,
   ;; which Emacs translates to C-M-i.
   (define-key tne-mode-map (kbd "C-M-i") #'tne-toggle-placement-display-mode))
@@ -3187,14 +3192,75 @@ only while this state is non-nil."
   (interactive)
   (tne-edit-segment 3))
 
-(defun tne-redraw () (interactive)
-  (let ((inhibit-read-only t))
-  (setq tne-layout-records nil)
+(defvar-local tne--rendering-p nil
+  "Non-nil while TNE is rebuilding the visible buffer.")
 
-  (erase-buffer)
-  (insert (tne-document-narrative-1 tne-current-document) "\n")
-  (insert (tne-render-segments (tne-document-n2-segments tne-current-document)) "\n")
-  (insert (tne-render-segments (tne-document-n3-segments tne-current-document)) "\n")))
+(defun tne-n1-buffer-text ()
+  "Return the text currently displayed on the physical N1 line."
+  (save-excursion
+    (goto-char (point-min))
+    (buffer-substring-no-properties
+     (line-beginning-position)
+     (line-end-position))))
+
+(defun tne-sync-n1-to-model (&rest _change)
+  "Synchronize visible N1 text into the current document model.
+
+This function is installed as a buffer-local `after-change-functions'
+hook.  It also runs during ordinary Emacs undo, keeping the model and
+visible buffer synchronized."
+  (when (and
+         (not tne--rendering-p)
+         tne-current-document)
+    (setf
+     (tne-document-narrative-1 tne-current-document)
+     (tne-n1-buffer-text))))
+
+(defun tne-redraw ()
+  "Rebuild the visible TNE buffer from the current document model."
+  (interactive)
+
+  (unless tne-current-document
+    (user-error "No current TNE document"))
+
+  (let* ((inhibit-read-only t)
+         (tne--rendering-p t)
+         (n1-length
+          (length
+           (tne-document-narrative-1
+            tne-current-document)))
+         (saved-n1-offset
+          (min
+           (max 0 (- (point) (point-min)))
+           n1-length)))
+
+    (setq tne-layout-records nil)
+
+    ;; Redrawing is a projection of model state.  It must not create
+    ;; additional user-visible undo steps.
+    (let ((buffer-undo-list t))
+      (erase-buffer)
+
+      (insert
+       (tne-document-narrative-1
+        tne-current-document)
+       "\n")
+
+      (insert
+       (tne-render-segments
+        (tne-document-n2-segments
+         tne-current-document))
+       "\n")
+
+      (insert
+       (tne-render-segments
+        (tne-document-n3-segments
+         tne-current-document))
+       "\n"))
+
+    (goto-char
+     (+ (point-min)
+        saved-n1-offset))))
 
 (defun tne-delete-segment (n)
   (let ((c (read-number "Delete segment at column: ")))
@@ -3400,9 +3466,131 @@ only while this state is non-nil."
 
 (defun tne-add-n2-segment()(interactive)(tne-add-segment 2))
 (defun tne-add-n3-segment()(interactive)(tne-add-segment 3))
-(define-derived-mode tne-mode special-mode "TNE"
- (setq tne-current-document (tne-model-create-default))
- (setq buffer-read-only nil)(tne-redraw))
+(defun tne--changed-text-region (before after)
+  "Return the changed region between BEFORE and AFTER.
+
+The result is a cons cell whose car is the zero-based beginning
+offset and whose cdr is the zero-based ending offset in AFTER."
+  (let* ((before-length (length before))
+         (after-length (length after))
+         (prefix-length 0)
+         (maximum-prefix
+          (min before-length after-length)))
+
+    (while
+        (and
+         (< prefix-length maximum-prefix)
+         (eq
+          (aref before prefix-length)
+          (aref after prefix-length)))
+
+      (setq prefix-length
+            (1+ prefix-length)))
+
+    (let* ((before-remaining
+            (- before-length prefix-length))
+
+           (after-remaining
+            (- after-length prefix-length))
+
+           (suffix-length 0)
+
+           (maximum-suffix
+            (min before-remaining after-remaining)))
+
+      (while
+          (and
+           (< suffix-length maximum-suffix)
+
+           (eq
+            (aref
+             before
+             (- before-length suffix-length 1))
+
+            (aref
+             after
+             (- after-length suffix-length 1))))
+
+        (setq suffix-length
+              (1+ suffix-length)))
+
+      (cons
+       prefix-length
+       (- after-length suffix-length)))))
+
+
+(defun tne-undo ()
+  "Undo one RE editing operation.
+
+The ordinary Emacs undo mechanism performs the buffer change.
+The existing TNE after-change hook synchronizes the result into
+the document model."
+  (interactive)
+
+  (undo-only 1))
+
+
+(defun tne-redo ()
+  "Redo one RE editing operation and restore its expected point.
+
+When redo restores inserted text, point is placed immediately
+after the restored insertion."
+  (interactive)
+
+  (let ((before
+         (buffer-substring-no-properties
+          (point-min)
+          (point-max))))
+
+    (undo-redo 1)
+
+    (let* ((after
+            (buffer-substring-no-properties
+             (point-min)
+             (point-max)))
+
+           (changed-region
+            (tne--changed-text-region
+             before
+             after))
+
+           (before-length
+            (length before))
+
+           (after-length
+            (length after)))
+
+      ;; When redo restores text, place point after the restored
+      ;; material.  Deletion and replacement behavior can later be
+      ;; refined as the atomic RE operation model develops.
+      (when (> after-length before-length)
+
+        (goto-char
+         (+ (point-min)
+            (cdr changed-region)))))))
+
+
+(define-derived-mode tne-mode text-mode "TNE"
+  "Major mode for the Three-Narrative Relationship Editor."
+
+  (setq buffer-read-only nil)
+
+  (unless tne-current-document
+    (setq tne-current-document
+          (tne-model-create-default)))
+
+  (add-hook
+   'after-change-functions
+   #'tne-sync-n1-to-model
+   nil
+   t)
+
+  (tne-redraw)
+
+  (goto-char (point-min))
+
+  ;; Start a clean undo history for the new editing session.
+  (setq buffer-undo-list nil))
 (defun tne-new-document ()
   
   (interactive)
