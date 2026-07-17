@@ -173,3 +173,21 @@ Its existence is established by layout and narrative ownership rather
 than by preceding spaces stored in the text.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Segment-Editing Session
+
+A temporary editing state established when character input at a
+Projected Cursor creates a canonical Segment.
+
+While point remains at the Segment's right edge, subsequent character
+input extends that same Segment.
+
+The session is presentation and interaction state. It is not part of the
+persistent Segment representation.
+
+Escape, history restoration, or departure from the permitted editing
+position ends the session.
+
+-------------------------------------------------------------------------------

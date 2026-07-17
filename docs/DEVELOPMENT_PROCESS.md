@@ -88,3 +88,26 @@ boundary behaves correctly.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## Undo Testing Without Intermediate Commands
+
+Emacs evaluation commands participate in the command sequence being
+tested.
+
+Running `M-:` evaluations between characters may interrupt editing
+coalescence, trigger command-boundary processing, and cause RE history
+checkpoints to occur at intermediate construction states.
+
+Undo and redo tests shall therefore:
+
+1. construct the complete intended edit without diagnostic commands,
+2. end the temporary editing state when required,
+3. perform undo or redo,
+4. and evaluate the resulting state afterward.
+
+Diagnostic evaluations may be used at explicit checkpoints, but shall
+not be inserted inside an operation whose undo grouping is under test.
+
+-------------------------------------------------------------------------------

@@ -2156,3 +2156,32 @@ Projected cursor state belongs to the discarded projection and shall not
 survive redraw.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Continuous Segment Construction from Projected Geometry
+
+Typing the first character at a Projected Cursor creates one canonical
+Segment at the projected narrative location.
+
+After that first character:
+
+- a temporary Segment-editing session begins,
+- subsequent right-edge character input extends the same Segment,
+- each character becomes part of the canonical Segment text,
+- the Segment retains one stable identity and starting column,
+- redraw preserves the Segment and the insertion point at its right edge,
+- and no padding spaces are added to the canonical narrative.
+
+Escape ends the Segment-editing session without changing the Segment.
+
+After the session ends, ordinary unmodeled insertion into N2 or N3 is
+rejected.
+
+Undo removes the complete uninterrupted Segment-construction operation
+and restores the preceding Projected Cursor location.
+
+Redo restores the complete Segment and its post-edit insertion position
+without silently restoring the temporary Segment-editing session.
+
+-------------------------------------------------------------------------------

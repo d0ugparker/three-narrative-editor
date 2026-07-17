@@ -65,19 +65,257 @@
 	(global-set-key (kbd "C-c C-v 2")  'tne-load-lorem-ipsum)
 	m))
 
+(defvar-local tne-segment-edit-session nil
+  "Current direct Segment-editing session.
+
+The value is nil or a plist containing:
+
+:segment-id
+:owner
+:block-index
+
+The session begins when typing at projected empty geometry creates the
+first canonical character of a Segment.  While point remains at that
+Segment's right edge, subsequent characters extend the same Segment.")
+
+
+(defun tne-clear-segment-edit-session ()
+  "End the current direct Segment-editing session."
+  (setq tne-segment-edit-session nil))
+
+
+(defun tne-segment-edit-session-segment ()
+  "Return the Segment owned by the current editing session."
+  (when tne-segment-edit-session
+    (tne-find-segment-by-id
+     (plist-get
+      tne-segment-edit-session
+      :segment-id))))
+
+
+(defun tne-segment-edit-end-column (segment)
+  "Return SEGMENT's zero-based display column immediately after its text."
+  (+
+   (1-
+    (tne-segment-start-column segment))
+
+   (string-width
+    (tne-segment-text segment))))
+
+
+(defun tne-segment-edit-session-at-point-p ()
+  "Return non-nil when point is at the active Segment's right edge."
+  (let ((segment
+         (tne-segment-edit-session-segment)))
+
+    (and
+     segment
+
+     (not tne-projected-column)
+
+     (eq
+      (tne-current-narrative-owner)
+
+      (plist-get
+       tne-segment-edit-session
+       :owner))
+
+     (=
+      (tne-current-display-block-index)
+
+      (plist-get
+       tne-segment-edit-session
+       :block-index))
+
+     (=
+      (current-column)
+
+      (tne-segment-edit-end-column
+       segment)))))
+
+
+(defun tne-goto-segment-edit-end (segment block-index)
+  "Move point to SEGMENT's rendered right edge in BLOCK-INDEX."
+  (let ((owner
+         (tne-segment-owner segment))
+
+        (column
+         (tne-segment-edit-end-column segment)))
+
+    (goto-char (point-min))
+
+    (forward-line
+     (+
+      (* 4 block-index)
+
+      (pcase owner
+        ('n1 0)
+        ('n2 1)
+        ('n3 2)
+        (_
+         (user-error
+          "Invalid Segment owner: %s"
+          owner)))))
+
+    (move-to-column column)
+
+    (unless (= (current-column) column)
+      (user-error
+       "Rendered Segment end is unavailable at column %s"
+       column))))
+
+
+(defun tne-start-segment-edit-session (segment block-index)
+  "Begin right-edge editing of SEGMENT in BLOCK-INDEX."
+  (setq
+   tne-segment-edit-session
+   (list
+    :segment-id
+    (tne-segment-id segment)
+
+    :owner
+    (tne-segment-owner segment)
+
+    :block-index
+    block-index)))
+
+
+(defun tne-insert-first-character-at-projected-cursor (character)
+  "Create canonical Segment content for CHARACTER at projected geometry.
+
+The projected cursor uses Emacs's zero-based display-column convention.
+Segment geometry uses the RE model's one-based column convention."
+  (let* ((owner
+          (tne-current-narrative-owner))
+
+         (block-index
+          (tne-current-display-block-index))
+
+         (display-column
+          tne-projected-column)
+
+         (model-column
+          (1+ display-column))
+
+         (text
+          (char-to-string character))
+
+         (segment
+          (tne-create-segment-at
+           owner
+           model-column
+           text
+           nil)))
+
+    (tne-clear-projected-cursor)
+
+    (tne-start-segment-edit-session
+     segment
+     block-index)
+
+    (tne-redraw)
+
+    (tne-goto-segment-edit-end
+     segment
+     block-index)
+
+    (message
+     "Created Segment %s at %s model column %s"
+     (tne-segment-id segment)
+     owner
+     model-column)
+
+    segment))
+
+
+(defun tne-append-character-to-segment-edit-session (character)
+  "Append CHARACTER to the Segment in the current editing session."
+  (let* ((segment
+          (tne-segment-edit-session-segment))
+
+         (block-index
+          (plist-get
+           tne-segment-edit-session
+           :block-index)))
+
+    (unless segment
+      (tne-clear-segment-edit-session)
+
+      (user-error
+       "The active Segment no longer exists"))
+
+    (setf
+     (tne-segment-text segment)
+
+     (concat
+      (tne-segment-text segment)
+      (char-to-string character)))
+
+    (tne-redraw)
+
+    (tne-goto-segment-edit-end
+     segment
+     block-index)
+
+    segment))
+
+
 (defun tne-self-insert-command (n)
-  "Insert the typed character, replacing an active selection.
+  "Insert typed input according to the current RE editing state.
+
+Projected-space input creates a new canonical Segment.  Continued input
+at that Segment's right edge extends the same Segment.  Direct unmodeled
+typing on N2 or N3 is rejected.
 
 N is the numeric prefix argument supplied to `self-insert-command'."
   (interactive "p")
 
-  (when (use-region-p)
-    (delete-region
-     (region-beginning)
-     (region-end)))
+  (cond
+   (tne-projected-column
+    (unless (= n 1)
+      (user-error
+       "Projected insertion currently accepts one character at a time"))
 
-  (self-insert-command n))
+    (unless (characterp last-command-event)
+      (user-error
+       "Projected insertion requires a character event"))
 
+    (tne-insert-first-character-at-projected-cursor
+     last-command-event))
+
+   ((and
+     tne-segment-edit-session
+     (tne-segment-edit-session-at-point-p))
+
+    (unless (= n 1)
+      (user-error
+       "Segment insertion currently accepts one character at a time"))
+
+    (unless (characterp last-command-event)
+      (user-error
+       "Segment insertion requires a character event"))
+
+    (tne-append-character-to-segment-edit-session
+     last-command-event))
+
+   ((memq
+     (tne-current-narrative-owner)
+     '(n2 n3))
+
+    (tne-clear-segment-edit-session)
+
+    (user-error
+     "N2/N3 insertion requires projected geometry or an active Segment edit"))
+
+   (t
+    (tne-clear-segment-edit-session)
+
+    (when (use-region-p)
+      (delete-region
+       (region-beginning)
+       (region-end)))
+
+    (self-insert-command n))))
 
 (defvar-local tne-boundary-edit-session nil
   "Current mixed-boundary editing session.
@@ -418,19 +656,33 @@ The first Down Arrow chooses non-Range focus."
 
 
 (defun tne-end-boundary-edit-session ()
-  "End boundary editing and restore stateless navigation."
+  "End the currently active temporary editing or navigation state."
   (interactive)
 
-  (if tne-boundary-edit-session
-      (progn
-        (setq tne-boundary-edit-session nil)
-        (message
-         "Boundary editing ended."))
+  (cond
+   (tne-boundary-edit-session
+    (setq tne-boundary-edit-session nil)
 
-    (progn
-      (tne-clear-projected-cursor)
-      (keyboard-quit))))
+    (message
+     "Boundary editing ended."))
 
+   (tne-segment-edit-session
+    (tne-clear-segment-edit-session)
+
+    (message
+     "Segment editing ended."))
+
+   ((or
+     tne-projected-column
+     (overlayp tne-projected-cursor-overlay))
+
+    (tne-clear-projected-cursor)
+
+    (message
+     "Projected navigation ended."))
+
+   (t
+    (keyboard-quit))))
 
 (defun tne-show-boundary-edit-state ()
   "Report the current boundary-edit session."
@@ -4251,16 +4503,98 @@ offset and whose cdr is the zero-based ending offset in AFTER."
   "Non-nil while RE history is restoring a snapshot.")
 
 
+(defun tne-copy-document-for-history (document)
+  "Return an independent canonical copy of DOCUMENT for RE history."
+  (make-tne-document
+   :id
+   (tne-document-id document)
+
+   :narrative-1
+   (copy-sequence
+    (tne-document-narrative-1 document))
+
+   :n1-segments
+   (mapcar
+    #'copy-tne-segment
+    (tne-document-n1-segments document))
+
+   :n2-segments
+   (mapcar
+    #'copy-tne-segment
+    (tne-document-n2-segments document))
+
+   :n3-segments
+   (mapcar
+    #'copy-tne-segment
+    (tne-document-n3-segments document))
+
+   :relationships
+   (mapcar
+    #'copy-tne-relationship
+    (tne-document-relationships document))))
+
+
+(defun tne-current-display-block-index ()
+  "Return the zero-based Narrative Display Block containing point."
+  (floor
+   (1- (line-number-at-pos))
+   4))
+
+
 (defun tne-current-model-snapshot ()
-  "Return the current N1 model text and insertion-point offset."
-  (list
-   :n1-text
-   (tne-document-narrative-1
-    tne-current-document)
+  "Return an independent canonical model and cursor-location snapshot."
+  (let ((owner
+         (tne-current-narrative-owner)))
 
-   :n1-offset
-   (tne-buffer-position-to-n1-offset)))
+    (list
+     :document
+     (tne-copy-document-for-history
+      tne-current-document)
 
+     :next-segment-id
+     tne-next-segment-id
+
+     :next-relationship-id
+     tne-next-relationship-id
+
+     :next-document-id
+     tne-next-document-id
+
+     :owner
+     owner
+
+     :block-index
+     (tne-current-display-block-index)
+
+     :effective-column
+     (tne-current-effective-column)
+
+     :projected-p
+     (and tne-projected-column t)
+
+     :n1-offset
+     (when (eq owner 'n1)
+       (tne-buffer-position-to-n1-offset)))))
+
+
+(defun tne-history-model-equal-p (left right)
+  "Return non-nil when LEFT and RIGHT contain the same canonical state."
+  (and
+   (equal
+    (plist-get left :document)
+    (plist-get right :document))
+
+   (equal
+    (plist-get left :next-segment-id)
+    (plist-get right :next-segment-id))
+
+   (equal
+    (plist-get left :next-relationship-id)
+    (plist-get right :next-relationship-id))
+
+   (equal
+    (plist-get left :next-document-id)
+    (plist-get right :next-document-id))))
 
 (defun tne-edit-command-kind (command)
   "Return the history grouping kind for COMMAND."
@@ -4322,9 +4656,9 @@ offset and whose cdr is the zero-based ending offset in AFTER."
       (if (and
            before
            (not
-            (equal
-             (plist-get before :n1-text)
-             (plist-get after :n1-text))))
+            (tne-history-model-equal-p
+             before
+             after)))
 
           (progn
             ;; Consecutive insertions form one undo unit.
@@ -4343,21 +4677,80 @@ offset and whose cdr is the zero-based ending offset in AFTER."
   (setq tne--pending-before-snapshot nil))
 
 
-(defun tne-restore-model-snapshot (snapshot)
-  "Restore N1 representation and point from SNAPSHOT."
-  (let ((tne--restoring-history-p t))
-    (setf
-     (tne-document-narrative-1
-      tne-current-document)
+(defun tne-restore-history-location (snapshot)
+  "Restore point or projected cursor location from SNAPSHOT."
+  (let ((owner
+         (plist-get snapshot :owner))
 
-     (plist-get snapshot :n1-text))
+        (block-index
+         (or
+          (plist-get snapshot :block-index)
+          0))
+
+        (column
+         (or
+          (plist-get snapshot :effective-column)
+          0)))
+
+    (tne-clear-projected-cursor)
+
+    (pcase owner
+      ('n1
+       (goto-char
+        (tne-n1-offset-to-buffer-position
+         (or
+          (plist-get snapshot :n1-offset)
+          0))))
+
+      ((or 'n2 'n3)
+       (goto-char (point-min))
+
+       (forward-line
+        (+
+         (* 4 block-index)
+         (if (eq owner 'n2)
+             1
+           2)))
+
+       (move-to-column column)
+
+       (when (< (current-column) column)
+         (end-of-line)
+
+         (tne-display-projected-cursor
+          column)))
+
+      (_
+       (goto-char (point-min))))))
+
+
+(defun tne-restore-model-snapshot (snapshot)
+  "Restore canonical representation and cursor location from SNAPSHOT."
+  (let ((tne--restoring-history-p t))
+    (setq
+     tne-current-document
+     (tne-copy-document-for-history
+      (plist-get snapshot :document)))
+
+    (setq
+     tne-next-segment-id
+     (plist-get snapshot :next-segment-id))
+
+    (setq
+     tne-next-relationship-id
+     (plist-get snapshot :next-relationship-id))
+
+    (setq
+     tne-next-document-id
+     (plist-get snapshot :next-document-id))
+
+    (tne-clear-projected-cursor)
+    (tne-clear-segment-edit-session)
 
     (tne-redraw)
 
-    (goto-char
-     (tne-n1-offset-to-buffer-position
-      (plist-get snapshot :n1-offset)))))
-
+    (tne-restore-history-location
+     snapshot)))
 
 (defun tne-undo ()
   "Restore the previous canonical RE model state."
@@ -4452,6 +4845,7 @@ offset and whose cdr is the zero-based ending offset in AFTER."
   (setq tne--last-edit-kind nil)
 
   (setq tne-boundary-edit-session nil)
+  (setq tne-segment-edit-session nil)
   (setq tne-projected-column nil)
   (setq tne-projected-cursor-overlay nil))
 (defun tne-new-document ()

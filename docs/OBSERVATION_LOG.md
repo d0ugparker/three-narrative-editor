@@ -935,3 +935,35 @@ The old projection, including projected cursor state, is disposable.
 The canonical Segment remains authoritative and is rendered again.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260717 — Segment Construction Across Keystrokes
+
+Observation:
+
+The first character typed in canonically empty projected geometry creates
+a new Segment.
+
+Later characters may look like ordinary Emacs insertion, but they extend
+the same canonical Segment under a temporary Segment-editing session.
+
+Result:
+
+A visible string assembled character by character remains one persistent
+Segment rather than becoming several Segments or unmodeled buffer text.
+
+
+Observation:
+
+Diagnostic evaluation is not observationally neutral within Emacs
+command history.
+
+An `eval-expression` command inserted between editing commands can divide
+the operation being tested and alter where history checkpoints occur.
+
+Result:
+
+Undo grouping must be tested with an uninterrupted editing sequence.
+
+-------------------------------------------------------------------------------

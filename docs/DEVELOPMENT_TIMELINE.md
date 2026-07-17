@@ -103,3 +103,29 @@ The next unresolved behavior is canonical character insertion from a
 projected cursor location.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260717 — Continuous Projected-Segment Editing
+
+Implemented and verified continued right-edge editing after projected
+geometry receives its first canonical character.
+
+Confirmed behavior:
+
+- the first character creates one canonical Segment,
+- subsequent characters extend that same Segment,
+- Segment identity and starting geometry remain stable,
+- redraw preserves the completed text and right-edge position,
+- Escape ends the editing session,
+- unmodeled N2/N3 insertion is rejected afterward,
+- undo removes the uninterrupted Segment construction and restores the
+  preceding Projected Cursor,
+- and redo restores the completed Segment without restoring temporary
+  editing state.
+
+Testing also established that intermediate `eval-expression` commands
+can divide undo-history operations and should not be placed inside an
+undo-grouping test.
+
+-------------------------------------------------------------------------------
