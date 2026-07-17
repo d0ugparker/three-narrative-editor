@@ -119,3 +119,57 @@ to a user-defined or domain-defined vocabulary.
 
 A Relationship does not require a type to be valid.
 
+
+## Mixed Boundary
+
+A Range boundary position at which the same cursor coordinate may address
+either the Range or adjacent non-Range content.
+
+## Boundary Flash
+
+Temporary visual feedback shown when keyboard navigation enters a mixed
+boundary whose editing domain must be made explicit.
+
+
+## Boundary-Edit Session
+
+A temporary editing state begun when the user resolves a mixed Range
+boundary in favor of either Range or non-Range content.
+
+The session survives ordinary cursor movement and ends explicitly with
+Escape.
+
+
+-------------------------------------------------------------------------------
+
+## Projected Cursor
+
+A temporary visual representation of an intended horizontal position
+that has no corresponding canonical buffer character.
+
+The real Emacs point remains at the end of the narrative's existing
+content while the projected cursor displays the inherited geometric
+position.
+
+A Projected Cursor is presentation state. It is not text, padding,
+Range content, or a second canonical insertion point.
+
+
+## Projected Column
+
+The temporary horizontal coordinate preserved while the cursor occupies
+canonically empty narrative geometry.
+
+The Projected Column is cleared when a real buffer position can represent
+the location or when the current projection is discarded.
+
+
+## Canonically Empty Narrative Space
+
+A valid location in computed narrative geometry at which no canonical
+narrative character presently exists.
+
+Its existence is established by layout and narrative ownership rather
+than by preceding spaces stored in the text.
+
+-------------------------------------------------------------------------------

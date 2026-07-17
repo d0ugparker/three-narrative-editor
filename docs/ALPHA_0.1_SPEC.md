@@ -1756,3 +1756,403 @@ Complex Relationship Editor operations shall restore their expected
 final insertion-point location as part of the same atomic undo or redo
 operation.
 
+
+-------------------------------------------------------------------------------
+
+## Mixed-Boundary Navigation
+
+A Range boundary occupies one geometric position while supporting two
+editing domains:
+
+- the Range, and
+- the adjacent non-Range content.
+
+The editor shall therefore track boundary-side focus independently of
+cursor position.
+
+### Left Boundary Mouse Behavior
+
+Clicking the first character position at the left boundary shall
+initially give focus to the Range.
+
+Clicking that same position again shall toggle focus to the non-Range
+content immediately to the left.
+
+Further clicks at the same position shall continue toggling between the
+two editing domains.
+
+### Right Boundary Mouse Behavior
+
+The mixed position at the right boundary is the character position
+immediately beyond the final character currently belonging to the
+Range.
+
+Clicking that position shall initially give focus to the Range.
+
+Clicking that same position again shall toggle focus to the non-Range
+content immediately to the right.
+
+Further clicks at the same position shall continue toggling between the
+two editing domains.
+
+### Keyboard Arrival at a Mixed Boundary
+
+When keyboard navigation places point at a mixed-boundary position, the
+renderer shall visibly flash or otherwise emphasize that the position
+has more than one possible editing domain.
+
+The user shall not be required to infer the ambiguity.
+
+The initial editing domain shall be determined by the navigation
+direction and the rules below.
+
+### Vertical Toggle
+
+While point remains at a mixed-boundary position:
+
+- Up Arrow shall toggle between Range and non-Range focus,
+- Down Arrow shall toggle between the same two states,
+- and the two commands shall begin from opposite default states when no
+  boundary-side focus has yet been established.
+
+The exact initial mapping shall remain consistent throughout the editor
+and shall be communicated visually.
+
+Neither command shall move point away from the mixed-boundary position
+while performing this toggle.
+
+### Word Navigation
+
+Platform-standard word-navigation commands frequently land directly on
+mixed-boundary positions.
+
+On macOS, these normally include:
+
+- Option-Right Arrow, which lands after the final character of a word,
+- Option-Left Arrow, which lands before the first character of a word.
+
+The Relationship Editor shall detect the actual word-navigation commands
+delivered by the current Emacs and operating-system configuration.
+
+When such a command lands at a Range boundary, the editor shall establish
+or expose boundary-side focus according to the same mixed-boundary rules
+used for mouse navigation.
+
+The specification defines the resulting behavior rather than requiring
+one physical modifier key on every platform.
+
+### Visual Feedback
+
+Range focus and non-Range focus shall be visually distinguishable.
+
+When the Range has focus:
+
+- Range content remains normally readable,
+- adjacent non-Range content is subdued.
+
+When the non-Range has focus:
+
+- adjacent non-Range content remains normally readable,
+- Range content is subdued.
+
+A mixed-boundary flash is temporary presentation state.
+
+Boundary-side focus remains active until:
+
+- the user toggles it,
+- point leaves the boundary,
+- or another object receives primary focus.
+
+-------------------------------------------------------------------------------
+
+
+### Stateless Horizontal Boundary Navigation
+
+Ordinary horizontal navigation shall remain stateless.
+
+Moving point left or right through a mixed-boundary position shall not
+confine the user to either the Range or non-Range editing domain.
+
+Repeated Left Arrow, Right Arrow, platform word-left, or platform
+word-right commands may cross either boundary freely.
+
+When horizontal navigation lands on a mixed-boundary position:
+
+- point shall remain at that position,
+- the renderer shall briefly indicate that the position is shared,
+- and no boundary-side focus shall yet be established.
+
+A flash indicates available choice.
+
+It does not make that choice.
+
+Boundary-side focus becomes active only after an intentional resolving
+gesture, including:
+
+- Up Arrow,
+- Down Arrow,
+- or a mouse click at the shared boundary position.
+
+### Vertical Boundary Resolution
+
+When point occupies a mixed boundary without an established
+boundary-side focus:
+
+- Up Arrow shall establish one editing domain,
+- Down Arrow shall establish the opposite editing domain,
+- and neither command shall move point vertically.
+
+Once boundary-side focus exists, either Up Arrow or Down Arrow shall
+toggle between Range and non-Range focus while point remains at the same
+shared coordinate.
+
+Leaving the mixed boundary by ordinary horizontal navigation shall clear
+the temporary boundary-side focus.
+
+### Persistent Editing Target
+
+Temporary Range A and Range B selections shall not own mixed-boundary
+focus.
+
+After a selection becomes a persistent document segment, that persistent
+segment supplies the boundaries used for mixed-boundary detection and
+editing focus.
+
+Temporary selections exist to create persistent structure.
+
+They are not the long-term editing structure.
+
+
+### Boundary-Edit Session
+
+Resolving a mixed boundary begins a boundary-edit session.
+
+A boundary-edit session records:
+
+- the persistent segment receiving attention,
+- the boundary through which the session was entered,
+- and whether Range or non-Range content is active.
+
+Once established, this state shall not be cleared merely because point
+moves horizontally away from the shared boundary.
+
+The user may navigate and edit within the chosen domain while the
+renderer continues to distinguish:
+
+- the active editing domain, and
+- the inactive editing domain.
+
+Horizontal movement remains unrestricted.
+
+It does not silently reverse, replace, or terminate the user's explicit
+choice.
+
+### Ending Boundary Editing
+
+Escape shall end the active boundary-edit session.
+
+When Escape is pressed:
+
+- boundary-side focus shall be cleared,
+- temporary Range/non-Range presentation shall be removed,
+- ordinary stateless navigation shall resume,
+- and no persistent document content shall be changed merely because
+  the session ended.
+
+A click on a neutral editor area or another explicit focus-changing
+operation may later be defined as an additional way to end the session.
+
+Alpha 0.1 shall use Escape as the canonical keyboard command.
+
+### Escape as State Exit
+
+Escape may become the common exit command for other temporary
+Relationship Editor interaction states.
+
+Each future state shall define explicitly:
+
+- what Escape ends,
+- what temporary presentation is removed,
+- what persistent information remains,
+- and where point or primary focus remains afterward.
+
+Those applications shall be added only as the relevant states are
+implemented.
+
+
+### Editing-Domain Confinement
+
+A boundary-edit session confines editing and navigation to the domain
+explicitly selected by the user.
+
+When Range focus is active:
+
+- point shall remain within the selected Range,
+- edits shall affect only that Range,
+- horizontal navigation shall stop at its boundaries,
+- and attempts to cross into adjacent non-Range content shall produce
+  an audible warning without moving point.
+
+When non-Range focus is active:
+
+- point shall remain within the selected adjacent non-Range domain,
+- edits shall affect only that non-Range content,
+- navigation shall not cross into the Range,
+- and attempts to cross the shared boundary shall produce an audible
+  warning without moving point.
+
+Escape shall end the boundary-edit session.
+
+After Escape:
+
+- editing-domain confinement is removed,
+- ordinary horizontal navigation becomes unrestricted,
+- and point may cross Range boundaries normally.
+
+
+### Selection Replacement
+
+Typing while narrative text is actively selected shall replace the
+selected text.
+
+The selected text shall be removed and the typed character or text
+inserted at the beginning of the former selection.
+
+Typing shall not merely deactivate the selection and append text beside
+it.
+
+The replacement shall be recorded as one conceptual undo operation.
+
+
+### Boundary Navigation After Escape
+
+Escape ends editing-domain confinement and restores stateless horizontal
+navigation.
+
+Point may then cross Range boundaries freely.
+
+Whenever navigation lands exactly on a mixed-boundary position, the
+renderer shall flash or otherwise emphasize that shared position.
+
+The flash communicates that Range and non-Range editing choices are
+available.
+
+It does not establish either choice.
+
+
+### Narrative-Line Confinement
+
+A boundary-edit session remains confined to the narrative line on which
+the editing domain was selected.
+
+After Range or non-Range focus is established:
+
+- Left Arrow and Right Arrow navigate within the selected editing domain,
+- Up Arrow and Down Arrow shall not move point to another narrative line,
+- attempts at vertical movement shall produce an audible warning,
+- and Escape shall end the editing session.
+
+After Escape, ordinary navigation among narrative lines resumes.
+
+
+### Ordinary Vertical Column Preservation
+
+Outside a boundary-edit session, vertical navigation shall preserve
+point's actual current horizontal position.
+
+The editor shall not reuse a stale goal column established by an earlier
+mixed-boundary operation.
+
+When point moves from one narrative line to another:
+
+- its destination column shall match its current source column whenever
+  that destination position exists,
+- prior Range boundaries shall not pull point back to their columns,
+- and shorter destination lines may clamp point only as required by the
+  available content or editing geometry.
+
+During an active boundary-edit session, vertical navigation remains
+blocked until Escape ends the session.
+
+
+-------------------------------------------------------------------------------
+
+## Segment Window Placement and Overflow
+
+A Segment remains one continuous canonical object even when its ordinary
+projection flows through multiple Narrative Display Blocks.
+
+A Segment window is never split across blocks.
+
+When the user activates a Segment from a particular block:
+
+- the window opens in that block,
+- that block becomes the temporary display location for the Segment,
+- the activated visible portion begins at the left edge of the window,
+- the window uses the greatest width available in that context,
+- and overflow arrows indicate Segment content beyond the visible edges.
+
+When activation begins at the first visible portion of the Segment:
+
+- no left-overflow arrow is displayed,
+- and a right-overflow arrow is displayed when additional Segment content
+  exists beyond the window.
+
+If the same Segment is activated from another block, the window opens in
+that block instead. The canonical Segment is unchanged.
+
+A screen boundary may divide the ordinary projection of a Segment, but it
+does not divide the Segment's identity and does not create multiple
+windows.
+
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Navigation Through Canonically Empty Narrative Space
+
+A narrative display location may exist even when no canonical character
+exists at that horizontal position.
+
+When vertical movement enters a narrative row that ends before the
+intended horizontal column:
+
+- the canonical Emacs point remains at the real end of the row,
+- the intended horizontal column is retained as temporary presentation
+  state,
+- a non-textual projected cursor is displayed at that column,
+- no spaces are inserted into the narrative,
+- and existing narrative content remains unchanged.
+
+Vertical movement through other canonically empty narrative rows
+preserves the projected column.
+
+When movement reaches a row containing a real buffer position at that
+column:
+
+- the projected cursor is removed,
+- the projected column is cleared,
+- and ordinary Emacs point resumes at the real position.
+
+Mouse movement, consumed selection, Escape where applicable, and redraw
+remove obsolete projected-cursor state.
+
+Projected cursor geometry is not selectable text, canonical content, or
+part of a Range.
+
+-------------------------------------------------------------------------------
+
+## Redraw Position Preservation
+
+Redraw preserves narrative ownership as well as canonical position.
+
+An N1 position is restored through its canonical N1 offset.
+
+An N2 or N3 position is restored within the same narrative. When the
+pre-redraw position occupied projected empty geometry, redraw resolves
+point to the end of the narrative's real canonical rendered content.
+
+Projected cursor state belongs to the discarded projection and shall not
+survive redraw.
+
+-------------------------------------------------------------------------------

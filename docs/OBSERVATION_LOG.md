@@ -697,3 +697,241 @@ reported window text width.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Correct wrapping was achieved only after distinguishing between the
+physical window width, the usable narrative width, and the canonical
+Relationship Editor wrap width.
+
+The renderer intentionally reserves one additional column beyond the
+usable display width so that canonical block boundaries always precede
+any editor-generated visual continuation.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Canonical buffer reconstruction from inside `after-change-functions'
+breaks ordinary undo grouping.
+
+The originating character edit and the renderer's reconstruction can
+become separate operations, producing a partially undone word even
+though the visible document appears correct before undo.
+
+The after-change hook shall update the persistent model only.
+
+Canonical reflow shall occur after the originating command has
+completed.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+The introduction of Narrative Display Blocks changed the editor from an
+editable text buffer into a rendered projection.
+
+Once presentation geometry diverges from representation geometry,
+position-based editor history becomes unreliable.
+
+Undo and redo therefore become properties of the representation rather
+than of the rendered presentation.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+A mixed Range boundary cannot be resolved from cursor coordinates alone.
+
+Mouse repetition, navigation direction, and explicit keyboard toggling
+provide the additional state required to identify which editing domain
+owns the next operation.
+
+Observation:
+
+Word-navigation commands are especially important because their normal
+landing positions coincide with the mixed positions immediately before
+and after words.
+
+The Relationship Editor must normalize behavioral results across
+platforms rather than assume that one modifier-key sequence is universal.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Arriving at an ambiguous boundary is not equivalent to resolving it.
+
+Horizontal navigation remains free and stateless.
+
+The renderer exposes the ambiguity, while an intentional vertical or
+mouse gesture establishes which editing domain receives subsequent
+intent.
+
+Observation:
+
+The current Range A and Range B objects are temporary selection state.
+
+Mixed-boundary editing must be attached to the persistent segment
+created from a selection rather than to the temporary selection itself.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Resolving an ambiguous boundary establishes editing intent that must
+survive ordinary cursor movement.
+
+Clearing that intent merely because point moved would make navigation
+silently override an explicit user decision.
+
+Observation:
+
+Escape provides an explicit transition from a temporary editing state
+back to ordinary stateless navigation.
+
+This pattern may be reused by future interaction states, but each use
+must be specified as it is encountered.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260715
+
+Observation:
+
+Resolving a mixed boundary does more than identify editing intent.
+
+It establishes a temporary editing enclosure.
+
+The enclosure prevents ordinary navigation or editing from silently
+crossing into the domain the user deliberately excluded.
+
+Escape removes the enclosure and restores unrestricted navigation.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260716
+
+Observation:
+
+Ordinary Emacs vertical navigation may retain a temporary goal column
+from an earlier cursor operation.
+
+After mixed-boundary interaction, that remembered position can cause
+point to return unexpectedly to a segment boundary instead of preserving
+its actual current column.
+
+Relationship Editor vertical navigation therefore uses point's current
+horizontal position explicitly whenever no editing-domain enclosure is
+active.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260716
+
+Observation:
+
+A Segment may flow through several Narrative Display Blocks while
+remaining one canonical object.
+
+Opening a Segment window does not gather or split windows across those
+blocks. The window opens locally in the block where the user activated
+the Segment and displays as much content as its available width permits.
+
+Overflow arrows communicate hidden Segment content beyond the window
+edges.
+
+Result:
+
+Canonical continuity and local presentation are independent.
+
+The activation location determines where the window appears, but does
+not alter the Segment or divide its identity.
+
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260716 — Navigable Geometry Without Text
+
+Observation:
+
+Emacs ordinarily treats a visible cursor location and a buffer position
+as the same thing.
+
+The Relationship Editor cannot always do so.
+
+A user may move vertically into a valid narrative location whose
+horizontal geometry is inherited from another narrative even though the
+destination narrative contains no characters extending to that column.
+
+Literal padding failed because Emacs treated the padding as selectable,
+editable, wrappable buffer content.
+
+Result:
+
+The real Emacs point remains at the canonical row end while a temporary
+overlay displays a projected cursor at the intended column.
+
+This preserves navigation without manufacturing false narrative
+content.
+
+
+Observation:
+
+Two cursor positions may look identical while possessing different
+internal foundations.
+
+One is supported by canonical characters.
+
+The other is supported by narrative ownership, computed layout, and
+projected geometry.
+
+
+Observation:
+
+Redraw must preserve narrative ownership, not merely an N1-relative
+offset.
+
+The old projection, including projected cursor state, is disposable.
+The canonical Segment remains authoritative and is rendered again.
+
+-------------------------------------------------------------------------------

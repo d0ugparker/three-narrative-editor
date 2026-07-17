@@ -65,6 +65,396 @@
 	(global-set-key (kbd "C-c C-v 2")  'tne-load-lorem-ipsum)
 	m))
 
+(defun tne-self-insert-command (n)
+  "Insert the typed character, replacing an active selection.
+
+N is the numeric prefix argument supplied to `self-insert-command'."
+  (interactive "p")
+
+  (when (use-region-p)
+    (delete-region
+     (region-beginning)
+     (region-end)))
+
+  (self-insert-command n))
+
+
+(defvar-local tne-boundary-edit-session nil
+  "Current mixed-boundary editing session.
+
+The value is nil or a plist containing:
+
+:segment-id
+:boundary
+:domain
+
+BOUNDARY is `left' or `right'.
+DOMAIN is `range' or `non-range'.")
+
+
+(defvar-local tne-projected-column nil
+  "Intended horizontal display column in canonically empty space.
+
+When non-nil, point remains at the physical end of the current
+narrative row while the renderer displays the cursor at this column.")
+
+
+(defvar-local tne-projected-cursor-overlay nil
+  "Overlay used to display point in canonically empty narrative space.")
+
+
+(defun tne-segment-aperture-width-effective (segment)
+  "Return SEGMENT's established display aperture width."
+  (max
+   1
+   (or
+    (tne-segment-aperture-width segment)
+    (length
+     (tne-segment-text segment)))))
+
+
+(defun tne-segment-left-offset (segment)
+  "Return SEGMENT's zero-based left shared-boundary offset."
+  (1-
+   (tne-segment-start-column segment)))
+
+
+(defun tne-segment-right-offset (segment)
+  "Return SEGMENT's zero-based right shared-boundary offset."
+  (+
+   (tne-segment-left-offset segment)
+   (tne-segment-aperture-width-effective segment)))
+
+
+(defun tne-n1-segments-at-mixed-boundary (&optional offset)
+  "Return N1 segment-boundary matches at OFFSET.
+
+Each result has the form:
+
+  (SEGMENT . BOUNDARY)
+
+where BOUNDARY is `left' or `right'."
+  (let ((position
+         (or
+          offset
+          (tne-buffer-position-to-n1-offset)))
+
+        (matches nil))
+
+    (dolist
+        (segment
+         (tne-document-n1-segments
+          tne-current-document))
+
+      (when
+          (= position
+             (tne-segment-left-offset segment))
+
+        (push
+         (cons segment 'left)
+         matches))
+
+      (when
+          (= position
+             (tne-segment-right-offset segment))
+
+        (push
+         (cons segment 'right)
+         matches)))
+
+    (nreverse matches)))
+
+
+(defun tne-current-mixed-boundary ()
+  "Return the unique mixed boundary currently under point.
+
+Return nil when point is not on a boundary.
+
+Signal an error when several segment boundaries share the position,
+because that later case requires an explicit chooser."
+  (let ((matches
+         (tne-n1-segments-at-mixed-boundary)))
+
+    (cond
+     ((null matches)
+      nil)
+
+     ((= (length matches) 1)
+      (car matches))
+
+     (t
+      (user-error
+       "Several segment boundaries share this position")))))
+
+
+(defun tne-boundary-domain-opposite (domain)
+  "Return the editing domain opposite DOMAIN."
+  (pcase domain
+    ('range 'non-range)
+    ('non-range 'range)
+    (_ nil)))
+
+
+(defun tne-set-boundary-edit-session
+    (segment boundary domain)
+  "Begin or update a boundary-edit session."
+  (setq
+   tne-boundary-edit-session
+   (list
+    :segment-id
+    (tne-segment-id segment)
+
+    :boundary
+    boundary
+
+    :domain
+    domain))
+
+  (message
+   "Boundary edit: SID=%s %s boundary, %s active"
+   (tne-segment-id segment)
+   boundary
+   domain))
+
+
+(defun tne-clear-projected-cursor ()
+  "Remove the temporary cursor projection, if one exists."
+  (when (overlayp tne-projected-cursor-overlay)
+    (delete-overlay
+     tne-projected-cursor-overlay))
+
+  (setq tne-projected-cursor-overlay nil)
+  (setq tne-projected-column nil))
+
+
+(defun tne-display-projected-cursor (column)
+  "Display the cursor at COLUMN without inserting buffer text.
+
+Point must already be at the physical end of the destination narrative
+row.  Existing narrative content is left untouched."
+  (tne-clear-projected-cursor)
+
+  (let* ((physical-column
+          (current-column))
+
+         (distance
+          (1+
+           (- column physical-column))))
+
+    (when (> distance 0)
+      (let ((display-string
+             (make-string distance ?\s)))
+
+        ;; The final projected character displays Emacs's cursor while
+        ;; point itself remains at the canonical end of the row.
+        (put-text-property
+         (1- distance)
+         distance
+         'cursor
+         t
+         display-string)
+
+        (setq
+         tne-projected-cursor-overlay
+         (make-overlay
+          (point)
+          (point)
+          nil
+          t
+          t))
+
+        (overlay-put
+         tne-projected-cursor-overlay
+         'after-string
+         display-string)
+
+        (setq tne-projected-column column)))))
+
+
+(defun tne-current-effective-column ()
+  "Return point's actual or projected horizontal column."
+  (or tne-projected-column
+      (current-column)))
+
+
+(defun tne-move-vertical-from-current-column (lines)
+  "Move vertically by LINES while preserving projected geometry.
+
+When the destination narrative contains text through the intended
+column, point moves there normally.  When the destination ends earlier,
+point remains at its canonical end and a non-textual cursor projection
+shows the intended horizontal location."
+  (let ((column
+         (tne-current-effective-column)))
+
+    (tne-clear-projected-cursor)
+
+    (forward-line lines)
+
+    (move-to-column
+     column)
+
+    (when (< (current-column) column)
+      (end-of-line)
+
+      (tne-display-projected-cursor
+       column))))
+
+
+(defun tne-resolve-boundary-up ()
+  "Resolve or toggle mixed-boundary focus using Up Arrow.
+
+The first Up Arrow chooses Range focus."
+  (interactive)
+
+  (let ((match
+         (tne-current-mixed-boundary)))
+
+    (if (not match)
+        (if tne-boundary-edit-session
+            (progn
+              (ding)
+              (message
+               "Boundary editing is active. Press Escape to leave it."))
+
+          (tne-move-vertical-from-current-column
+           -1))
+
+      (let* ((segment
+              (car match))
+
+             (boundary
+              (cdr match))
+
+             (same-session-p
+              (and
+               tne-boundary-edit-session
+
+               (=
+                (plist-get
+                 tne-boundary-edit-session
+                 :segment-id)
+
+                (tne-segment-id segment))
+
+               (eq
+                (plist-get
+                 tne-boundary-edit-session
+                 :boundary)
+
+                boundary)))
+
+             (domain
+              (if same-session-p
+                  (tne-boundary-domain-opposite
+                   (plist-get
+                    tne-boundary-edit-session
+                    :domain))
+
+                'range)))
+
+        (tne-set-boundary-edit-session
+         segment
+         boundary
+         domain)))))
+
+
+(defun tne-resolve-boundary-down ()
+  "Resolve or toggle mixed-boundary focus using Down Arrow.
+
+The first Down Arrow chooses non-Range focus."
+  (interactive)
+
+  (let ((match
+         (tne-current-mixed-boundary)))
+
+    (if (not match)
+        (if tne-boundary-edit-session
+            (progn
+              (ding)
+              (message
+               "Boundary editing is active. Press Escape to leave it."))
+
+          (tne-move-vertical-from-current-column
+           1))
+
+      (let* ((segment
+              (car match))
+
+             (boundary
+              (cdr match))
+
+             (same-session-p
+              (and
+               tne-boundary-edit-session
+
+               (=
+                (plist-get
+                 tne-boundary-edit-session
+                 :segment-id)
+
+                (tne-segment-id segment))
+
+               (eq
+                (plist-get
+                 tne-boundary-edit-session
+                 :boundary)
+
+                boundary)))
+
+             (domain
+              (if same-session-p
+                  (tne-boundary-domain-opposite
+                   (plist-get
+                    tne-boundary-edit-session
+                    :domain))
+
+                'non-range)))
+
+        (tne-set-boundary-edit-session
+         segment
+         boundary
+         domain)))))
+
+
+(defun tne-end-boundary-edit-session ()
+  "End boundary editing and restore stateless navigation."
+  (interactive)
+
+  (if tne-boundary-edit-session
+      (progn
+        (setq tne-boundary-edit-session nil)
+        (message
+         "Boundary editing ended."))
+
+    (progn
+      (tne-clear-projected-cursor)
+      (keyboard-quit))))
+
+
+(defun tne-show-boundary-edit-state ()
+  "Report the current boundary-edit session."
+  (interactive)
+
+  (if tne-boundary-edit-session
+      (message
+       "SID=%s Boundary=%s Domain=%s"
+       (plist-get
+        tne-boundary-edit-session
+        :segment-id)
+
+       (plist-get
+        tne-boundary-edit-session
+        :boundary)
+
+       (plist-get
+        tne-boundary-edit-session
+        :domain))
+
+    (message
+     "Boundary edit: inactive")))
+
+
 (defun tne-install-keybindings ()
   "Install or refresh TNE mode keybindings.
 
@@ -75,6 +465,26 @@ installed without restarting Emacs."
   (define-key tne-mode-map (kbd "C-c C-a s") #'tne-set-range-a-from-selection)
   (define-key tne-mode-map (kbd "C-c C-b s") #'tne-set-range-b-from-selection)
   (define-key tne-mode-map (kbd "C-c C-s") #'tne-show-range-status)
+
+  ;; Mixed-boundary resolution and explicit state exit.
+  (define-key tne-mode-map (kbd "<up>")
+    #'tne-resolve-boundary-up)
+
+  (define-key tne-mode-map (kbd "<down>")
+    #'tne-resolve-boundary-down)
+
+  (define-key tne-mode-map (kbd "<escape>")
+    #'tne-end-boundary-edit-session)
+
+  (define-key tne-mode-map (kbd "C-c C-e")
+    #'tne-show-boundary-edit-state)
+
+  ;; Typing replaces an active selection, matching ordinary
+  ;; word-processing behavior.
+  (define-key
+   tne-mode-map
+   [remap self-insert-command]
+   #'tne-self-insert-command)
 
   ;; RE-specific undo and redo restore both model state and the
   ;; insertion-point consequences of the conceptual operation.
@@ -145,7 +555,7 @@ installed without restarting Emacs."
    (tne-document-narrative-1
     tne-current-document)
 
-   "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt")
+   "Lorem lorem ipsum ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt")
 
   (tne-redraw)
 
@@ -1963,19 +2373,49 @@ Future viewfinder lines should use a separate projection lookup."
           (list owner start-column end-column text))))))
 
 (defun tne-set-range-a-from-selection ()
-  "Set Range A from the current single-line selection."
+  "Set Range A from the current single-line selection.
+
+Any projected cursor is presentation state and is removed before the
+selection is interpreted.  The consumed region is then deactivated
+before point moves to the insertion point."
   (interactive)
+
+  (tne-clear-projected-cursor)
+
   (pcase-let ((`(,owner ,start ,end ,text)
                (tne-selection-to-range-data)))
-    (tne-set-range-a owner start end text)
+
+    (tne-set-range-a
+     owner
+     start
+     end
+     text)
+
+    (deactivate-mark)
+
     (tne-goto-insertion-point)))
 
+
 (defun tne-set-range-b-from-selection ()
-  "Set Range B from the current single-line selection."
+  "Set Range B from the current single-line selection.
+
+Any projected cursor is presentation state and is removed before the
+selection is interpreted.  The consumed region is deactivated after the
+Range has been recorded."
   (interactive)
+
+  (tne-clear-projected-cursor)
+
   (pcase-let ((`(,owner ,start ,end ,text)
                (tne-selection-to-range-data)))
-    (tne-set-range-b owner start end text)))
+
+    (tne-set-range-b
+     owner
+     start
+     end
+     text)
+
+    (deactivate-mark)))
 
 (defun tne-range-display-text (range label)
   (or (tne-range-text range)
@@ -3217,12 +3657,13 @@ only while this state is non-nil."
 (defun tne-sync-n1-to-model (&rest _change)
   "Synchronize visible N1 text into the current document model.
 
-This function is installed as a buffer-local `after-change-functions'
-hook.  It also runs during ordinary Emacs undo, keeping the model and
-visible buffer synchronized."
+This function runs from the buffer-local `after-change-functions' hook.
+It shall not redraw the buffer, because rebuilding the presentation
+inside an active buffer change interferes with ordinary undo grouping."
   (when (and
          (not tne--rendering-p)
          tne-current-document)
+
     (setf
      (tne-document-narrative-1 tne-current-document)
      (tne-n1-buffer-text))))
@@ -3237,7 +3678,7 @@ row never soft-wraps inside a Narrative Display Block."
        (-
         (window-text-width)
         (line-number-display-width)
-        1)))
+        2)))
 
 
 (defun tne-wrap-narrative-text (text width)
@@ -3361,6 +3802,61 @@ the nearest preceding N1 content offset."
       position)))
 
 
+(defun tne-current-n1-display-parts ()
+  "Return the N1 strings currently displayed in all narrative blocks."
+  (save-excursion
+    (goto-char (point-min))
+
+    (let ((parts nil))
+      (while (< (point) (point-max))
+        (push
+         (buffer-substring-no-properties
+          (line-beginning-position)
+          (line-end-position))
+         parts)
+
+        ;; Move from this N1 row to the next block's N1 row.
+        (forward-line 4))
+
+      (nreverse parts))))
+
+
+(defun tne-required-n1-display-parts ()
+  "Return the canonical N1 display strings required by the model."
+  (when tne-current-document
+    (tne-wrap-narrative-text
+     (tne-document-narrative-1
+      tne-current-document)
+
+     (tne-narrative-display-width))))
+
+
+(defun tne-live-reflow-needed-p ()
+  "Return non-nil when rendered N1 rows differ from canonical layout."
+  (and
+   tne-current-document
+   (not tne--rendering-p)
+
+   (not
+    (equal
+     (tne-current-n1-display-parts)
+     (tne-required-n1-display-parts)))))
+
+
+(defun tne-maybe-live-reflow ()
+  "Restore canonical Narrative Display Blocks after an editing command.
+
+The persistent model has already been updated by
+`tne-sync-n1-to-model'.  Reflow occurs only after the originating
+command and its undo record have completed."
+  (when
+      (and
+       (derived-mode-p 'tne-mode)
+       (tne-live-reflow-needed-p))
+
+    (tne-redraw)))
+
+
 (defun tne-render-display-block
     (n1-text n2-text n3-text &optional divider-p)
   "Insert one Narrative Display Block.
@@ -3405,8 +3901,40 @@ When DIVIDER-P is non-nil, insert a blank divider row after N3."
       (setq first-block-p nil))))
 
 
+(defun tne-current-narrative-owner ()
+  "Return the narrative owner of point's current display row."
+  (pcase
+      (% (1- (line-number-at-pos)) 4)
+
+    (0 'n1)
+    (1 'n2)
+    (2 'n3)
+    (_ nil)))
+
+
+(defun tne-goto-narrative-row-end (owner)
+  "Move point to the canonical end of OWNER in the current block.
+
+This function restores only a real buffer position.  It does not
+recreate projected cursor geometry."
+  (goto-char (point-min))
+
+  (pcase owner
+    ('n1 nil)
+    ('n2 (forward-line 1))
+    ('n3 (forward-line 2))
+    (_ nil))
+
+  (end-of-line))
+
+
 (defun tne-redraw ()
-  "Rebuild the visible TNE buffer from the current document model."
+  "Rebuild the visible TNE buffer from the current document model.
+
+N1 positions are preserved by canonical N1 offset.  Positions on N2 or
+N3 resolve to the end of that narrative's canonical rendered content.
+Projected cursor state is discarded because redraw creates a new
+presentation."
   (interactive)
 
   (unless tne-current-document
@@ -3414,14 +3942,23 @@ When DIVIDER-P is non-nil, insert a blank divider row after N3."
 
   (let* ((inhibit-read-only t)
          (tne--rendering-p t)
+
+         (saved-owner
+          (tne-current-narrative-owner))
+
          (n1-length
           (length
            (tne-document-narrative-1
             tne-current-document)))
+
          (saved-n1-offset
-          (min
-           (tne-buffer-position-to-n1-offset)
-           n1-length)))
+          (when (eq saved-owner 'n1)
+            (min
+             (tne-buffer-position-to-n1-offset)
+             n1-length))))
+
+    ;; The old overlay belongs to the old projection.
+    (tne-clear-projected-cursor)
 
     (setq tne-layout-records nil)
 
@@ -3433,9 +3970,13 @@ When DIVIDER-P is non-nil, insert a blank divider row after N3."
       (tne-render-document
        tne-current-document))
 
-    (goto-char
-     (tne-n1-offset-to-buffer-position
-      saved-n1-offset))))
+    (if (eq saved-owner 'n1)
+        (goto-char
+         (tne-n1-offset-to-buffer-position
+          saved-n1-offset))
+
+      (tne-goto-narrative-row-end
+       saved-owner))))
 
 (defun tne-delete-segment (n)
   (let ((c (read-number "Delete segment at column: ")))
@@ -3694,55 +4235,172 @@ offset and whose cdr is the zero-based ending offset in AFTER."
        (- after-length suffix-length)))))
 
 
-(defun tne-undo ()
-  "Undo one RE editing operation.
+(defvar-local tne--undo-stack nil
+  "Model snapshots available to RE undo.")
 
-The ordinary Emacs undo mechanism performs the buffer change.
-The existing TNE after-change hook synchronizes the result into
-the document model."
+(defvar-local tne--redo-stack nil
+  "Model snapshots available to RE redo.")
+
+(defvar-local tne--pending-before-snapshot nil
+  "Model snapshot captured before the current command.")
+
+(defvar-local tne--last-edit-kind nil
+  "Kind of the most recently recorded consecutive edit.")
+
+(defvar-local tne--restoring-history-p nil
+  "Non-nil while RE history is restoring a snapshot.")
+
+
+(defun tne-current-model-snapshot ()
+  "Return the current N1 model text and insertion-point offset."
+  (list
+   :n1-text
+   (tne-document-narrative-1
+    tne-current-document)
+
+   :n1-offset
+   (tne-buffer-position-to-n1-offset)))
+
+
+(defun tne-edit-command-kind (command)
+  "Return the history grouping kind for COMMAND."
+  (cond
+   ((memq command
+          '(self-insert-command
+            tne-self-insert-command
+            yank
+            yank-pop))
+    'insert)
+
+   ((memq command
+          '(delete-backward-char
+            backward-delete-char-untabify
+            delete-forward-char
+            kill-region
+            kill-word
+            backward-kill-word))
+    'delete)
+
+   (t nil)))
+
+
+(defun tne-history-before-command ()
+  "Capture canonical model state before the next editing command."
+  (if (or
+       tne--restoring-history-p
+       (memq this-command
+             '(tne-undo tne-redo)))
+
+      (setq tne--pending-before-snapshot nil)
+
+    (setq
+     tne--pending-before-snapshot
+     (tne-current-model-snapshot))))
+
+
+(defun tne-history-after-command ()
+  "Record a completed model edit and restore canonical layout."
+  (unless
+      (or
+       tne--restoring-history-p
+       (memq this-command
+             '(tne-undo tne-redo)))
+
+    (when (tne-live-reflow-needed-p)
+      (tne-redraw))
+
+    (let* ((before
+            tne--pending-before-snapshot)
+
+           (after
+            (tne-current-model-snapshot))
+
+           (kind
+            (tne-edit-command-kind
+             this-command)))
+
+      (if (and
+           before
+           (not
+            (equal
+             (plist-get before :n1-text)
+             (plist-get after :n1-text))))
+
+          (progn
+            ;; Consecutive insertions form one undo unit.
+            ;; Consecutive deletions form one undo unit.
+            (unless (eq kind tne--last-edit-kind)
+              (push before
+                    tne--undo-stack))
+
+            ;; A genuine new edit invalidates redo history.
+            (setq tne--redo-stack nil)
+            (setq tne--last-edit-kind kind))
+
+        (unless kind
+          (setq tne--last-edit-kind nil)))))
+
+  (setq tne--pending-before-snapshot nil))
+
+
+(defun tne-restore-model-snapshot (snapshot)
+  "Restore N1 representation and point from SNAPSHOT."
+  (let ((tne--restoring-history-p t))
+    (setf
+     (tne-document-narrative-1
+      tne-current-document)
+
+     (plist-get snapshot :n1-text))
+
+    (tne-redraw)
+
+    (goto-char
+     (tne-n1-offset-to-buffer-position
+      (plist-get snapshot :n1-offset)))))
+
+
+(defun tne-undo ()
+  "Restore the previous canonical RE model state."
   (interactive)
 
-  (undo-only 1))
+  (unless tne--undo-stack
+    (user-error "No further RE undo information"))
+
+  (let ((current
+         (tne-current-model-snapshot))
+
+        (previous
+         (pop tne--undo-stack)))
+
+    (push current
+          tne--redo-stack)
+
+    (setq tne--last-edit-kind nil)
+
+    (tne-restore-model-snapshot
+     previous)))
 
 
 (defun tne-redo ()
-  "Redo one RE editing operation and restore its expected point.
-
-When redo restores inserted text, point is placed immediately
-after the restored insertion."
+  "Restore the next canonical RE model state."
   (interactive)
 
-  (let ((before
-         (buffer-substring-no-properties
-          (point-min)
-          (point-max))))
+  (unless tne--redo-stack
+    (user-error "No further RE redo information"))
 
-    (undo-redo 1)
+  (let ((current
+         (tne-current-model-snapshot))
 
-    (let* ((after
-            (buffer-substring-no-properties
-             (point-min)
-             (point-max)))
+        (next
+         (pop tne--redo-stack)))
 
-           (changed-region
-            (tne--changed-text-region
-             before
-             after))
+    (push current
+          tne--undo-stack)
 
-           (before-length
-            (length before))
+    (setq tne--last-edit-kind nil)
 
-           (after-length
-            (length after)))
-
-      ;; When redo restores text, place point after the restored
-      ;; material.  Deletion and replacement behavior can later be
-      ;; refined as the atomic RE operation model develops.
-      (when (> after-length before-length)
-
-        (goto-char
-         (+ (point-min)
-            (cdr changed-region)))))))
+    (tne-restore-model-snapshot
+     next)))
 
 
 (define-derived-mode tne-mode text-mode "TNE"
@@ -3750,9 +4408,11 @@ after the restored insertion."
 
   (setq buffer-read-only nil)
 
-  ;; Narrative continuation is rendered through physical Narrative
-  ;; Display Blocks.  Emacs must not add visual continuation rows.
-  (setq-local truncate-lines t)
+  ;; During the originating keystroke, allow Emacs to display a
+  ;; temporary visual continuation rather than horizontally scrolling.
+  ;; The post-command reflow then replaces that temporary presentation
+  ;; with canonical Narrative Display Blocks.
+  (setq-local truncate-lines nil)
 
   (unless tne-current-document
     (setq tne-current-document
@@ -3764,12 +4424,36 @@ after the restored insertion."
    nil
    t)
 
+  ;; RE history records canonical model states rather than transient
+  ;; physical buffer coordinates.
+  (add-hook
+   'pre-command-hook
+   #'tne-history-before-command
+   nil
+   t)
+
+  (add-hook
+   'post-command-hook
+   #'tne-history-after-command
+   nil
+   t)
+
   (tne-redraw)
 
   (goto-char (point-min))
 
-  ;; Start a clean undo history for the new editing session.
-  (setq buffer-undo-list nil))
+  ;; Canonical RE history replaces position-based buffer undo because
+  ;; live reflow changes physical buffer coordinates.
+  (buffer-disable-undo)
+
+  (setq tne--undo-stack nil)
+  (setq tne--redo-stack nil)
+  (setq tne--pending-before-snapshot nil)
+  (setq tne--last-edit-kind nil)
+
+  (setq tne-boundary-edit-session nil)
+  (setq tne-projected-column nil)
+  (setq tne-projected-cursor-overlay nil))
 (defun tne-new-document ()
   
   (interactive)

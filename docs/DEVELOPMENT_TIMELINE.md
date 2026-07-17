@@ -64,3 +64,42 @@ step.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## 260715 — Live Narrative Reflow Started
+
+Added post-command detection of differences between the visible N1 rows
+and the canonical Narrative Display Block layout.
+
+When ordinary editing changes the required wrapping, the editor now
+re-renders N1 automatically after the editing command completes.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## 260716 — Projected Cursor Geometry
+
+Implemented and verified non-textual cursor projection for canonically
+empty narrative space.
+
+Confirmed behavior:
+
+- vertical movement preserves the intended horizontal column when N2 or
+  N3 ends before that location,
+- no buffer spaces are inserted,
+- existing narrative content is not moved or destroyed,
+- projected geometry does not become part of Range selection,
+- vertical continuation preserves the projected column,
+- return to real text restores ordinary Emacs point,
+- mouse movement clears projected state,
+- redraw clears the obsolete projection,
+- redraw preserves canonical N2 Segment content,
+- and redraw restores point to the correct narrative.
+
+The next unresolved behavior is canonical character insertion from a
+projected cursor location.
+
+-------------------------------------------------------------------------------

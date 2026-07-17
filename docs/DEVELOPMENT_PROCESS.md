@@ -49,3 +49,42 @@ Mechanisms should be derivable from principles whenever practical.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## Mixed-Boundary Navigation Test Matrix
+
+Boundary-navigation testing shall cover both boundaries and both editing
+domains.
+
+For the left shared boundary, verify:
+
+- horizontal arrival establishes no domain,
+- Up initially selects Range,
+- Down initially selects non-Range,
+- repeated Up or Down toggles the domain,
+- Left and Right move only as permitted by the selected enclosure,
+- Up and Down beep after point enters the chosen domain,
+- point remains on the same narrative line,
+- and Escape restores ordinary navigation.
+
+For the right shared boundary, verify the same behaviors independently.
+
+Testing shall also verify:
+
+- navigation inside the complete Range,
+- navigation inside the adjacent non-Range domain,
+- attempted crossing of each enclosing boundary,
+- audible warning and explanatory message,
+- state persistence during permitted horizontal navigation,
+- Escape termination,
+- unrestricted boundary crossing after Escape,
+- mixed-boundary flash after Escape,
+- and preservation of the current horizontal column during ordinary
+  vertical movement between narrative lines.
+
+A test of one boundary shall not be treated as proof that the opposite
+boundary behaves correctly.
+
+-------------------------------------------------------------------------------
+

@@ -64,3 +64,21 @@ It neither discovers nor infers recognition on the user's behalf.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## Canonical History
+
+Undo and redo operate on the canonical representation rather than the
+current presentation.
+
+The rendered editor is a projection of the underlying representation.
+Once projection geometry differs from representation geometry, history
+can no longer be maintained reliably from rendered buffer positions.
+
+Canonical history therefore belongs to the representation layer and is
+projected into the editor in the same manner as any other document
+state.
+
+-------------------------------------------------------------------------------
+

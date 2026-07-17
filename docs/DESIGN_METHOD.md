@@ -174,3 +174,55 @@ Narrative Display Blocks while preserving exact text and model offsets.
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## Post-Command Reflow
+
+Live Narrative Display Block reflow occurs after the originating editing
+command has completed.
+
+The editor shall not erase and reconstruct the rendered buffer from
+inside an active buffer-change hook.
+
+The after-change hook updates the persistent model.
+
+The post-command hook compares the visible projection with the canonical
+layout and re-renders only when they differ.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## Canonical Wrap Authority
+
+The Relationship Editor intentionally wraps narrative text before the
+last physically available display column.
+
+A small reserved safety margin ensures that canonical Narrative Display
+Block wrapping always occurs before Emacs performs its own visual line
+continuation.
+
+The Relationship Editor, not the underlying editor, determines where
+narrative structure changes.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+
+## Undo-Safe Live Reflow
+
+Buffer-change hooks update persistent representation but shall not erase
+and reconstruct the rendered buffer.
+
+Live Narrative Display Block reconstruction occurs after the originating
+editing command has completed and its ordinary undo record has been
+established.
+
+Undo correctness takes precedence over eliminating a brief transitional
+presentation during boundary-crossing edits.
+
+-------------------------------------------------------------------------------
+
