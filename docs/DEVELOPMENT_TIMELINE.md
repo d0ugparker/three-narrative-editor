@@ -129,3 +129,24 @@ can divide undo-history operations and should not be placed inside an
 undo-grouping test.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260717 — Backspace and Empty Active Entry
+
+Implemented and verified right-edge Backspace during projected Segment
+construction.
+
+Confirmed behavior:
+
+- Backspace at projected geometry cannot cross a physical line boundary,
+- deleting one character shortens the existing canonical Segment,
+- deleting the sole character removes the empty Segment,
+- the projected origin is restored,
+- the Segment-entry session remains active while empty,
+- subsequent typing resumes at the same origin,
+- repeated Backspace at the empty origin beeps without deleting unrelated
+  content,
+- and Escape explicitly ends the entry session.
+
+-------------------------------------------------------------------------------

@@ -967,3 +967,27 @@ Result:
 Undo grouping must be tested with an uninterrupted editing sequence.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260717 — Entry Persists Through Temporary Emptiness
+
+Observation:
+
+The existence of a Segment and the existence of an entry session are
+different facts.
+
+A user may delete the first or final remaining character because it was
+mistyped and then continue typing from the same starting location.
+
+Result:
+
+The empty Segment is removed from the canonical model, while the
+Segment-entry session remains active at its projected origin.
+
+The representation does not preserve a meaningless empty object, but the
+interaction preserves the user's unfinished act of entry.
+
+This separates object lifecycle from interaction lifecycle.
+
+-------------------------------------------------------------------------------

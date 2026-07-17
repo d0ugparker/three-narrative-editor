@@ -191,3 +191,19 @@ Escape, history restoration, or departure from the permitted editing
 position ends the session.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Empty Active Segment Entry
+
+A Segment-entry session that remains active at its Projected Column after
+all of its canonical characters have been deleted.
+
+No empty Segment is stored in the representation.
+
+The entry retains its narrative owner, Narrative Display Block, and
+projected origin so that subsequent typing may resume naturally.
+
+Escape ends the entry.
+
+-------------------------------------------------------------------------------

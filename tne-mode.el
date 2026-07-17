@@ -66,18 +66,23 @@
 	m))
 
 (defvar-local tne-segment-edit-session nil
-  "Current direct Segment-editing session.
+  "Current direct Segment-entry session.
 
 The value is nil or a plist containing:
 
 :segment-id
 :owner
 :block-index
+:display-column
 
-The session begins when typing at projected empty geometry creates the
-first canonical character of a Segment.  While point remains at that
-Segment's right edge, subsequent characters extend the same Segment.")
+SEGMENT-ID is nil while the active entry contains no characters.
 
+The session begins when projected-space input creates a Segment.  If all
+of that Segment's characters are deleted, the empty Segment is removed
+from the canonical model while the entry session and projected origin
+remain active.
+
+Escape explicitly ends the session.")
 
 (defun tne-clear-segment-edit-session ()
   "End the current direct Segment-editing session."
@@ -85,13 +90,32 @@ Segment's right edge, subsequent characters extend the same Segment.")
 
 
 (defun tne-segment-edit-session-segment ()
-  "Return the Segment owned by the current editing session."
-  (when tne-segment-edit-session
-    (tne-find-segment-by-id
-     (plist-get
-      tne-segment-edit-session
-      :segment-id))))
+  "Return the Segment currently attached to the entry session.
 
+Return nil when the session is active but presently contains no
+canonical Segment."
+  (let ((segment-id
+         (and
+          tne-segment-edit-session
+
+          (plist-get
+           tne-segment-edit-session
+           :segment-id))))
+
+    (when segment-id
+      (tne-find-segment-by-id
+       segment-id))))
+
+
+(defun tne-segment-edit-session-empty-p ()
+  "Return non-nil when entry is active but contains no Segment."
+  (and
+   tne-segment-edit-session
+
+   (null
+    (plist-get
+     tne-segment-edit-session
+     :segment-id))))
 
 (defun tne-segment-edit-end-column (segment)
   "Return SEGMENT's zero-based display column immediately after its text."
@@ -166,7 +190,7 @@ Segment's right edge, subsequent characters extend the same Segment.")
 
 
 (defun tne-start-segment-edit-session (segment block-index)
-  "Begin right-edge editing of SEGMENT in BLOCK-INDEX."
+  "Begin right-edge entry for SEGMENT in BLOCK-INDEX."
   (setq
    tne-segment-edit-session
    (list
@@ -177,7 +201,57 @@ Segment's right edge, subsequent characters extend the same Segment.")
     (tne-segment-owner segment)
 
     :block-index
-    block-index)))
+    block-index
+
+    :display-column
+    (1-
+     (tne-segment-start-column segment)))))
+
+
+(defun tne-attach-segment-to-edit-session (segment block-index)
+  "Attach SEGMENT to an active empty entry session.
+
+When no compatible empty session exists, begin a new session."
+  (let ((owner
+         (tne-segment-owner segment))
+
+        (display-column
+         (1-
+          (tne-segment-start-column segment))))
+
+    (if
+        (and
+         (tne-segment-edit-session-empty-p)
+
+         (eq
+          owner
+          (plist-get
+           tne-segment-edit-session
+           :owner))
+
+         (=
+          block-index
+          (plist-get
+           tne-segment-edit-session
+           :block-index))
+
+         (=
+          display-column
+          (plist-get
+           tne-segment-edit-session
+           :display-column)))
+
+        (setq
+         tne-segment-edit-session
+
+         (plist-put
+          tne-segment-edit-session
+          :segment-id
+          (tne-segment-id segment)))
+
+      (tne-start-segment-edit-session
+       segment
+       block-index))))
 
 
 (defun tne-insert-first-character-at-projected-cursor (character)
@@ -209,7 +283,7 @@ Segment geometry uses the RE model's one-based column convention."
 
     (tne-clear-projected-cursor)
 
-    (tne-start-segment-edit-session
+    (tne-attach-segment-to-edit-session
      segment
      block-index)
 
@@ -258,6 +332,234 @@ Segment geometry uses the RE model's one-based column convention."
      block-index)
 
     segment))
+
+
+(defun tne-remove-segment-from-document (segment)
+  "Remove SEGMENT from its owning canonical narrative."
+  (pcase
+      (tne-segment-owner segment)
+
+    ('n1
+     (setf
+      (tne-document-n1-segments
+       tne-current-document)
+
+      (delq
+       segment
+
+       (tne-document-n1-segments
+        tne-current-document))))
+
+    ('n2
+     (setf
+      (tne-document-n2-segments
+       tne-current-document)
+
+      (delq
+       segment
+
+       (tne-document-n2-segments
+        tne-current-document))))
+
+    ('n3
+     (setf
+      (tne-document-n3-segments
+       tne-current-document)
+
+      (delq
+       segment
+
+       (tne-document-n3-segments
+        tne-current-document))))
+
+    (_
+     (user-error
+      "Invalid Segment owner: %s"
+      (tne-segment-owner segment)))))
+
+
+(defun tne-goto-narrative-geometry
+    (owner block-index display-column)
+  "Move to OWNER in BLOCK-INDEX at DISPLAY-COLUMN.
+
+When the rendered row does not contain a real buffer position at the
+requested column, restore that location with a Projected Cursor rather
+than inserting spaces."
+  (tne-clear-projected-cursor)
+
+  (goto-char
+   (point-min))
+
+  (forward-line
+   (+
+    (* 4 block-index)
+
+    (pcase owner
+      ('n1 0)
+      ('n2 1)
+      ('n3 2)
+      (_
+       (user-error
+        "Invalid narrative owner: %s"
+        owner)))))
+
+  (move-to-column
+   display-column)
+
+  (when
+      (<
+       (current-column)
+       display-column)
+
+    (end-of-line)
+
+    (tne-display-projected-cursor
+     display-column)))
+
+
+(defun tne-delete-last-segment-edit-character ()
+  "Delete the final character of the active Segment-editing session.
+
+When the character is the Segment's only content, remove the empty
+Segment and restore the Projected Cursor at its former origin."
+  (let* ((segment
+          (tne-segment-edit-session-segment))
+
+         (owner
+          (and
+           segment
+           (tne-segment-owner segment)))
+
+         (block-index
+          (and
+           tne-segment-edit-session
+
+           (plist-get
+            tne-segment-edit-session
+            :block-index)))
+
+         (text
+          (and
+           segment
+           (tne-segment-text segment))))
+
+    (unless segment
+      (tne-clear-segment-edit-session)
+
+      (user-error
+       "The active Segment no longer exists"))
+
+    (unless
+        (tne-segment-edit-session-at-point-p)
+
+      (tne-clear-segment-edit-session)
+
+      (user-error
+       "Backspace is currently permitted only at the active Segment's right edge"))
+
+    (if
+        (> (length text) 1)
+
+        (progn
+          (setf
+           (tne-segment-text segment)
+           (substring text 0 -1))
+
+          (tne-redraw)
+
+          (tne-goto-segment-edit-end
+           segment
+           block-index)
+
+          (message
+           "Deleted final character from Segment %s"
+           (tne-segment-id segment)))
+
+      (let ((display-column
+             (1-
+              (tne-segment-start-column segment)))
+
+            (segment-id
+             (tne-segment-id segment)))
+
+        (tne-remove-segment-from-document
+         segment)
+
+        ;; No empty Segment is stored, but the entry operation remains
+        ;; active at its originating projected geometry.
+        (setq
+         tne-segment-edit-session
+         (list
+          :segment-id nil
+          :owner owner
+          :block-index block-index
+          :display-column display-column))
+
+        (tne-redraw)
+
+        (tne-goto-narrative-geometry
+         owner
+         block-index
+         display-column)
+
+        (message
+         "Segment %s is empty; entry remains active"
+         segment-id)))))
+
+
+(defun tne-backward-delete-char (n)
+  "Delete backward according to the current RE editing state.
+
+At projected empty geometry, Backspace is enclosed and cannot cross into
+another narrative or delete unrelated content.
+
+At the right edge of an active Segment-editing session, Backspace removes
+canonical Segment content.  Deleting the sole character removes the
+Segment and restores its preceding Projected Cursor.
+
+N is the numeric prefix argument."
+  (interactive "p")
+
+  (unless (= n 1)
+    (user-error
+     "Segment deletion currently accepts one character at a time"))
+
+  (cond
+   ;; No canonical character exists yet.  Do not let ordinary Emacs
+   ;; Backspace cross the physical line boundary.
+   (tne-projected-column
+    (ding)
+
+    (message
+     (if (tne-segment-edit-session-empty-p)
+         "Beginning of active Segment entry: nothing to delete"
+       "Beginning of projected Segment: nothing to delete")))
+
+   ;; Canonical Segment construction exists and owns this deletion.
+   ((and
+     tne-segment-edit-session
+     (tne-segment-edit-session-at-point-p))
+
+    (tne-delete-last-segment-edit-character))
+
+   ;; A stale or departed session must not authorize deletion elsewhere.
+   (tne-segment-edit-session
+    (tne-clear-segment-edit-session)
+
+    (user-error
+     "Segment editing ended: Backspace was outside its right edge"))
+
+   ;; Unmodeled deletion on N2 or N3 is not permitted.
+   ((memq
+     (tne-current-narrative-owner)
+     '(n2 n3))
+
+    (user-error
+     "N2/N3 deletion requires an active Segment-editing session"))
+
+   ;; N1 retains ordinary text-editing behavior.
+   (t
+    (backward-delete-char-untabify n))))
 
 
 (defun tne-self-insert-command (n)
@@ -737,6 +1039,28 @@ installed without restarting Emacs."
    tne-mode-map
    [remap self-insert-command]
    #'tne-self-insert-command)
+
+  ;; Backspace must operate on canonical Segment content rather than
+  ;; crossing physical line boundaries or changing disposable layout.
+  (define-key
+   tne-mode-map
+   [remap backward-delete-char-untabify]
+   #'tne-backward-delete-char)
+
+  (define-key
+   tne-mode-map
+   [remap delete-backward-char]
+   #'tne-backward-delete-char)
+
+  (define-key
+   tne-mode-map
+   (kbd "DEL")
+   #'tne-backward-delete-char)
+
+  (define-key
+   tne-mode-map
+   (kbd "<backspace>")
+   #'tne-backward-delete-char)
 
   ;; RE-specific undo and redo restore both model state and the
   ;; insertion-point consequences of the conceptual operation.
@@ -4607,7 +4931,8 @@ offset and whose cdr is the zero-based ending offset in AFTER."
     'insert)
 
    ((memq command
-          '(delete-backward-char
+          '(tne-backward-delete-char
+            delete-backward-char
             backward-delete-char-untabify
             delete-forward-char
             kill-region

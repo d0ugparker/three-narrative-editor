@@ -111,3 +111,20 @@ Diagnostic evaluations may be used at explicit checkpoints, but shall
 not be inserted inside an operation whose undo grouping is under test.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Pretty-Printed Diagnostic Results
+
+Diagnostic expressions whose expected results are shown as structured
+Lisp data shall be run with:
+
+    M-x pp-eval-expression
+
+rather than ordinary `M-:` evaluation.
+
+This provides stable indentation and line breaks, making the observed
+result directly comparable with the expected result supplied in the
+test instructions.
+
+-------------------------------------------------------------------------------

@@ -2185,3 +2185,31 @@ Redo restores the complete Segment and its post-edit insertion position
 without silently restoring the temporary Segment-editing session.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Empty Active Segment Entry
+
+A Segment-entry session belongs to the user's continuing act of entry,
+not to the temporary presence of canonical characters.
+
+When Backspace deletes the only character of a newly constructed
+Segment:
+
+- the empty Segment is removed from the canonical model,
+- the projected origin is restored,
+- the Segment-entry session remains active,
+- and subsequent typing creates a new Segment at the same origin within
+  the same continuing entry operation.
+
+While the active entry contains no characters:
+
+- Backspace shall beep,
+- no surrounding content shall be deleted,
+- and the entry session shall remain active.
+
+Escape explicitly ends the Segment-entry session.
+
+Temporary emptiness alone does not end entry.
+
+-------------------------------------------------------------------------------
