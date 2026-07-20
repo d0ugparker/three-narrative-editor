@@ -145,3 +145,20 @@ Expected text shall not assume more character positions than the test
 geometry permits.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Adjacency Tests Must Verify Canonical and Rendered State Separately
+
+Tests involving multiple Segments must verify both:
+
+1. canonical Segment identity, owner, start, and text; and
+2. rendered separator count and placement.
+
+A visually correct line is insufficient if separator text has entered a
+canonical Segment.
+
+A canonically correct Segment list is insufficient if stale or missing
+separators remain in the projection.
+
+-------------------------------------------------------------------------------

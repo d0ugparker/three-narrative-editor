@@ -1072,3 +1072,35 @@ Projected status must be preserved independently from whether Emacs can
 place physical point at the same display column.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260720 — Adjacency Is Recomputed From Canonical Segments
+
+Observation:
+
+Creating a Segment between two existing Segments changes one adjacency
+relationship into two.
+
+Deleting that middle Segment changes the two adjacency relationships
+back into one.
+
+Result:
+
+Separators cannot be retained as historical display artifacts. They must
+be recomputed from the current ordered canonical Segment set every time
+the narrative is rendered.
+
+
+Observation:
+
+An empty active entry between existing Segments is not itself a
+canonical Segment.
+
+Result:
+
+The surrounding Segments become directly adjacent while the entry
+session separately preserves the projected origin from which a new
+Segment may later be created.
+
+-------------------------------------------------------------------------------

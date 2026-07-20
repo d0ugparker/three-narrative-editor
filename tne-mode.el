@@ -212,6 +212,132 @@ canonical Segment."
      (line-beginning-position))))
 
 
+(defun tne-sorted-segments-for-owner (owner)
+  "Return OWNER's canonical Segments sorted by starting column."
+  (sort
+   (copy-sequence
+    (tne-document-segments-for-owner owner))
+
+   (lambda (left right)
+     (<
+      (tne-segment-start-column left)
+      (tne-segment-start-column right)))))
+
+
+(defun tne-display-column-inside-segment-p
+    (owner display-column)
+  "Return non-nil when DISPLAY-COLUMN contains canonical Segment text."
+  (seq-some
+   (lambda (segment)
+     (let ((start
+            (tne-segment-edit-start-column segment))
+
+           (end
+            (tne-segment-edit-end-column segment)))
+
+       (and
+        (<= start display-column)
+        (< display-column end))))
+
+   (tne-document-segments-for-owner
+    owner)))
+
+
+(defun tne-neighbor-segments-around-column
+    (owner display-column)
+  "Return the nearest Segments surrounding DISPLAY-COLUMN.
+
+The result is a plist containing `:left' and `:right'."
+  (let ((left nil)
+        (right nil))
+
+    (dolist
+        (segment
+         (tne-sorted-segments-for-owner owner))
+
+      (let ((start
+             (tne-segment-edit-start-column segment))
+
+            (end
+             (tne-segment-edit-end-column segment)))
+
+        (cond
+         ((<= end display-column)
+          (setq left segment))
+
+         ((and
+           (null right)
+           (> start display-column))
+
+          (setq right segment)))))
+
+    (list
+     :left left
+     :right right)))
+
+
+(defun tne-projected-segment-placement-error
+    (owner block-index display-column character-width)
+  "Return an explanatory placement error or nil.
+
+Three display columns are reserved for every required layout-owned
+` | ' separator."
+  (let* ((neighbors
+          (tne-neighbor-segments-around-column
+           owner
+           display-column))
+
+         (left
+          (plist-get neighbors :left))
+
+         (right
+          (plist-get neighbors :right))
+
+         (proposed-end
+          (+ display-column character-width))
+
+         (n1-limit
+          (tne-corresponding-n1-row-width
+           block-index)))
+
+    (cond
+     ((tne-display-column-inside-segment-p
+       owner
+       display-column)
+
+      "The proposed origin is inside an existing Segment")
+
+     ((> proposed-end n1-limit)
+      "The proposed Segment exceeds the corresponding N1 extent")
+
+     ((and
+       left
+
+       (<
+        display-column
+
+        (+
+         (tne-segment-edit-end-column left)
+         3)))
+
+      "Insufficient territory for the left ` | ' separator")
+
+     ((and
+       right
+
+       (>
+        (+
+         proposed-end
+         3)
+
+        (tne-segment-edit-start-column right)))
+
+      "Insufficient territory for the right ` | ' separator")
+
+     (t
+      nil))))
+
+
 (defun tne-next-segment-to-right (segment)
   "Return the nearest Segment positioned to the right of SEGMENT."
   (car
@@ -373,8 +499,9 @@ When no compatible empty session exists, begin a new session."
 (defun tne-insert-first-character-at-projected-cursor (character)
   "Create canonical Segment content for CHARACTER at projected geometry.
 
-The projected cursor uses Emacs's zero-based display-column convention.
-Segment geometry uses the RE model's one-based column convention."
+The proposed origin is validated against the corresponding N1 extent,
+existing Segments, and the three display columns required for every
+layout-owned ` | ' separator."
   (let* ((owner
           (tne-current-narrative-owner))
 
@@ -384,38 +511,56 @@ Segment geometry uses the RE model's one-based column convention."
          (display-column
           tne-projected-column)
 
-         (model-column
-          (1+ display-column))
+         (character-width
+          (string-width
+           (char-to-string character)))
 
-         (text
-          (char-to-string character))
-
-         (segment
-          (tne-create-segment-at
+         (placement-error
+          (tne-projected-segment-placement-error
            owner
-           model-column
-           text
-           nil)))
+           block-index
+           display-column
+           character-width)))
 
-    (tne-clear-projected-cursor)
+    (if placement-error
+        (progn
+          (ding)
 
-    (tne-attach-segment-to-edit-session
-     segment
-     block-index)
+          (message
+           "%s"
+           placement-error)
 
-    (tne-redraw)
+          nil)
 
-    (tne-goto-segment-edit-end
-     segment
-     block-index)
+      (let* ((model-column
+              (1+ display-column))
 
-    (message
-     "Created Segment %s at %s model column %s"
-     (tne-segment-id segment)
-     owner
-     model-column)
+             (segment
+              (tne-create-segment-at
+               owner
+               model-column
+               (char-to-string character)
+               nil)))
 
-    segment))
+        (tne-clear-projected-cursor)
+
+        (tne-attach-segment-to-edit-session
+         segment
+         block-index)
+
+        (tne-redraw)
+
+        (tne-goto-segment-edit-end
+         segment
+         block-index)
+
+        (message
+         "Created Segment %s at %s model column %s"
+         (tne-segment-id segment)
+         owner
+         model-column)
+
+        segment))))
 
 
 (defun tne-append-character-to-segment-edit-session (character)
@@ -1143,12 +1288,14 @@ row.  Existing narrative content is left untouched."
 
 
 (defun tne-move-vertical-from-current-column (lines)
-  "Move vertically by LINES while preserving projected geometry.
+  "Move vertically by LINES while preserving canonical geometry.
 
-When the destination narrative contains text through the intended
-column, point moves there normally.  When the destination ends earlier,
-point remains at its canonical end and a non-textual cursor projection
-shows the intended horizontal location."
+When the destination narrative contains canonical Segment text at the
+intended column, point moves there normally.
+
+When the destination is canonically empty, the intended location becomes
+projected geometry even if renderer-owned padding makes that physical
+buffer column reachable."
   (let ((column
          (tne-current-effective-column)))
 
@@ -1159,11 +1306,30 @@ shows the intended horizontal location."
     (move-to-column
      column)
 
-    (when (< (current-column) column)
-      (end-of-line)
+    (let ((owner
+           (tne-current-narrative-owner)))
 
-      (tne-display-projected-cursor
-       column))))
+      (cond
+       ((<
+         (current-column)
+         column)
+
+        (end-of-line)
+
+        (tne-display-projected-cursor
+         column))
+
+       ((and
+         (memq owner '(n2 n3))
+
+         (not
+          (tne-display-column-inside-segment-p
+           owner
+           column)))
+
+        (setq
+         tne-projected-column
+         column))))))
 
 
 (defun tne-resolve-boundary-up ()

@@ -2368,3 +2368,51 @@ History preserves projected canonical geometry even when it coincides
 with renderer-owned physical padding.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Creating a Segment Between Existing Segments
+
+A user may begin a new Segment in projected canonical geometry between
+two existing Segments on the same narrative line.
+
+Before the first character is accepted, the proposed origin must leave
+sufficient territory for:
+
+- the existing left Segment,
+- one layout-owned `" | "` separator,
+- at least one character of the new Segment,
+- a second layout-owned `" | "` separator,
+- and the existing right Segment.
+
+If the required territory is unavailable, the first character is
+refused. No canonical Segment is created, neighboring Segments remain
+unchanged, and point remains at the proposed projected origin.
+
+When placement is valid:
+
+- a new Segment receives a new SID,
+- its Alpha 0.1 starting column is fixed at the selected projected origin,
+- the left and right Segments retain their SIDs, starts, and texts,
+- and the new Segment becomes the active Segment-entry session.
+
+Three adjacent Segments produce exactly two separators.
+
+Deleting the middle Segment to empty removes its canonical object and
+causes the two former separators to be replaced by one separator between
+the remaining adjacent Segments.
+
+The empty Segment-entry session remains active at the same projected
+origin. Typing again creates a new middle Segment with a new SID and
+restores two separators.
+
+Undo of the completed middle-Segment entry restores:
+
+- the two original neighboring Segments,
+- one separator between them,
+- and the projected origin from which middle entry began.
+
+Redo restores the completed middle Segment and both separators without
+reopening the Segment-entry session.
+
+-------------------------------------------------------------------------------

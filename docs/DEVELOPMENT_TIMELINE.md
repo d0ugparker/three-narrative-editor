@@ -183,3 +183,32 @@ Modified implementation files:
 - `tne-render.el`
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260720 — Middle-Segment Creation and Adjacency Recalculation
+
+Implemented and verified creation of a new Segment in projected geometry
+between two existing Segments.
+
+Verified:
+
+- projected entry recognition inside renderer-owned padding,
+- placement validation against both neighboring Segments,
+- reservation of one three-column separator on each side,
+- refusal when separator territory is insufficient,
+- creation of a new middle SID without modifying either neighbor,
+- two separators for three adjacent Segments,
+- rightward growth stopping before the right separator,
+- Left and Backspace protection at the middle Segment's origin,
+- deletion of the middle Segment to an empty active session,
+- replacement of two separators with one,
+- resumed entry at the same projected origin with a new SID,
+- undo restoring the original two-Segment state and projected origin,
+- and redo restoring the middle Segment without reopening the session.
+
+Implementation file modified:
+
+- `tne-mode.el`
+
+-------------------------------------------------------------------------------
