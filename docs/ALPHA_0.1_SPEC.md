@@ -2213,3 +2213,158 @@ Escape explicitly ends the Segment-entry session.
 Temporary emptiness alone does not end entry.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Segment Entry Geometry and Separators
+
+During an Alpha 0.1 Segment-entry session:
+
+- the Segment retains the same stable identity,
+- its starting column remains fixed,
+- its right extent expands or contracts with its canonical text,
+- and Escape explicitly ends the entry session.
+
+A single Segment displayed alone on a narrative line requires no visible
+separator.
+
+When two Segments occupy the same narrative line, the Layout Manager
+places:
+
+    " | "
+
+between them.
+
+When a Segment is inserted between two existing Segments, one separator
+is displayed on each side of the inserted Segment.
+
+Separators are layout-required presentation, not canonical Segment text.
+
+Segment editing shall not overwrite, absorb, shorten, or reinterpret a
+separator.
+
+For Alpha 0.1, one uninterrupted Segment-entry session constitutes one
+undo operation.
+
+Undo restores the representation and cursor state that existed before
+the session began. Redo restores the completed representation without
+reopening the temporary entry session.
+
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Direct Editing Within an Active Segment
+
+During an active Alpha 0.1 Segment-entry session, the Segment behaves as
+ordinary editable text within its available narrative territory.
+
+The user may:
+
+- move Left and Right among all insertion positions in the Segment,
+- insert characters at the beginning, middle, or end,
+- and use Backspace to delete the character immediately before point.
+
+The Segment retains its SID throughout the session while it exists.
+
+For Alpha 0.1, its starting column remains fixed. Its right extent grows
+and contracts as its canonical text changes.
+
+Left movement at the Segment beginning and Right movement at the Segment
+end do not leave the active Segment-entry enclosure. The attempted
+movement beeps and point remains unchanged.
+
+Backspace at the Segment beginning does not delete renderer-owned layout,
+a separator, neighboring Segment content, or content from another
+narrative.
+
+Escape explicitly ends the Segment-entry session.
+
+-------------------------------------------------------------------------------
+
+## Segment Territory and Adjacency Separators
+
+A Segment may expand only through currently available narrative
+territory.
+
+Its rightward growth is limited by the nearer of:
+
+- the corresponding N1 narrative extent, or
+- the territory reserved before the next Segment on the same narrative
+  line.
+
+Each adjacent pair of Segments is separated by exactly:
+
+    " | "
+
+The separator occupies three display columns and is owned by layout. It
+belongs to neither Segment's canonical text.
+
+One Segment alone on a narrative line has no separator.
+
+Two Segments have one separator between them.
+
+A Segment inserted between two existing Segments requires one separator
+on each side.
+
+When adjacency ends because a Segment is removed, its former separator
+also disappears.
+
+An edit may not overwrite, absorb, shorten, or cross a separator. An
+insertion that would exceed available territory is refused without
+changing canonical content or point.
+
+-------------------------------------------------------------------------------
+
+## Redraw During Segment Entry
+
+Redraw preserves an active Segment-entry session.
+
+When point is inside the active Segment, redraw restores the same
+insertion offset relative to that Segment's fixed Alpha 0.1 starting
+column.
+
+Redraw preserves:
+
+- Segment identity,
+- Segment text,
+- starting column,
+- narrative owner,
+- Narrative Display Block,
+- insertion offset,
+- and active session state.
+
+-------------------------------------------------------------------------------
+
+## Projected Canonical Geometry Over Rendered Padding
+
+Projected canonical geometry may coincide with a physical buffer
+position occupied by renderer-owned padding.
+
+In that case:
+
+- point may occupy the physical buffer column,
+- `tne-projected-column` still records that the location is canonically
+  empty projected geometry,
+- and no projected-cursor overlay is required.
+
+A projected-cursor overlay is required only when the intended display
+column lies beyond the physical end of the rendered row.
+
+-------------------------------------------------------------------------------
+
+## Segment-Entry Undo and Redo
+
+For Alpha 0.1, one uninterrupted Segment-entry session is one undo
+operation.
+
+Undo restores the canonical representation and cursor geometry that
+existed before the session began.
+
+Redo restores the completed canonical result without reopening the
+temporary Segment-entry session.
+
+History preserves projected canonical geometry even when it coincides
+with renderer-owned physical padding.
+
+-------------------------------------------------------------------------------

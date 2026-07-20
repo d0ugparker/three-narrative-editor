@@ -117,14 +117,60 @@ canonical Segment."
      tne-segment-edit-session
      :segment-id))))
 
+(defun tne-segment-edit-start-column (segment)
+  "Return SEGMENT's zero-based starting display column."
+  (1-
+   (tne-segment-start-column segment)))
+
+
 (defun tne-segment-edit-end-column (segment)
-  "Return SEGMENT's zero-based display column immediately after its text."
+  "Return the insertion column immediately after SEGMENT's text."
   (+
-   (1-
-    (tne-segment-start-column segment))
+   (tne-segment-edit-start-column segment)
 
    (string-width
     (tne-segment-text segment))))
+
+
+(defun tne-segment-edit-session-location-valid-p ()
+  "Return non-nil when point is on the active Segment's rendered row."
+  (and
+   tne-segment-edit-session
+
+   (not tne-projected-column)
+
+   (eq
+    (tne-current-narrative-owner)
+
+    (plist-get
+     tne-segment-edit-session
+     :owner))
+
+   (=
+    (tne-current-display-block-index)
+
+    (plist-get
+     tne-segment-edit-session
+     :block-index))))
+
+
+(defun tne-segment-edit-session-inside-p ()
+  "Return non-nil when point is at an insertion position in the Segment."
+  (let ((segment
+         (tne-segment-edit-session-segment)))
+
+    (and
+     segment
+
+     (tne-segment-edit-session-location-valid-p)
+
+     (<=
+      (tne-segment-edit-start-column segment)
+      (current-column))
+
+     (<=
+      (current-column)
+      (tne-segment-edit-end-column segment)))))
 
 
 (defun tne-segment-edit-session-at-point-p ()
@@ -135,21 +181,7 @@ canonical Segment."
     (and
      segment
 
-     (not tne-projected-column)
-
-     (eq
-      (tne-current-narrative-owner)
-
-      (plist-get
-       tne-segment-edit-session
-       :owner))
-
-     (=
-      (tne-current-display-block-index)
-
-      (plist-get
-       tne-segment-edit-session
-       :block-index))
+     (tne-segment-edit-session-inside-p)
 
      (=
       (current-column)
@@ -158,36 +190,120 @@ canonical Segment."
        segment)))))
 
 
-(defun tne-goto-segment-edit-end (segment block-index)
-  "Move point to SEGMENT's rendered right edge in BLOCK-INDEX."
-  (let ((owner
-         (tne-segment-owner segment))
+(defun tne-segment-edit-offset (segment)
+  "Return point's zero-based insertion offset within SEGMENT."
+  (-
+   (current-column)
+   (tne-segment-edit-start-column segment)))
 
-        (column
-         (tne-segment-edit-end-column segment)))
 
+(defun tne-corresponding-n1-row-width (block-index)
+  "Return the visible N1 width for BLOCK-INDEX."
+  (save-excursion
     (goto-char (point-min))
 
     (forward-line
-     (+
-      (* 4 block-index)
+     (* 4 block-index))
 
-      (pcase owner
-        ('n1 0)
-        ('n2 1)
-        ('n3 2)
-        (_
-         (user-error
-          "Invalid Segment owner: %s"
-          owner)))))
+    (current-column)
 
-    (move-to-column column)
+    (-
+     (line-end-position)
+     (line-beginning-position))))
 
-    (unless (= (current-column) column)
-      (user-error
-       "Rendered Segment end is unavailable at column %s"
-       column))))
 
+(defun tne-next-segment-to-right (segment)
+  "Return the nearest Segment positioned to the right of SEGMENT."
+  (car
+   (sort
+    (seq-filter
+     (lambda (candidate)
+       (and
+        (not
+         (eq candidate segment))
+
+        (>
+         (tne-segment-start-column candidate)
+         (tne-segment-start-column segment))))
+
+     (copy-sequence
+      (tne-document-segments-for-owner
+       (tne-segment-owner segment))))
+
+    (lambda (left right)
+      (<
+       (tne-segment-start-column left)
+       (tne-segment-start-column right))))))
+
+
+(defun tne-segment-entry-right-limit-column (segment block-index)
+  "Return SEGMENT's maximum permitted right-edge insertion column.
+
+The limit is the corresponding N1 extent unless another Segment exists
+to the right.  In that case, three display columns are reserved for the
+layout-owned separator ` | `."
+  (let* ((n1-limit
+          (tne-corresponding-n1-row-width
+           block-index))
+
+         (next
+          (tne-next-segment-to-right
+           segment))
+
+         (neighbor-limit
+          (when next
+            (-
+             (tne-segment-edit-start-column next)
+             3))))
+
+    (if neighbor-limit
+        (min
+         n1-limit
+         neighbor-limit)
+
+      n1-limit)))
+
+
+(defun tne-goto-segment-edit-column
+    (segment block-index display-column)
+  "Move to DISPLAY-COLUMN in SEGMENT's rendered row."
+  (goto-char (point-min))
+
+  (forward-line
+   (+
+    (* 4 block-index)
+
+    (pcase
+        (tne-segment-owner segment)
+
+      ('n1 0)
+      ('n2 1)
+      ('n3 2)
+
+      (_
+       (user-error
+        "Invalid Segment owner: %s"
+        (tne-segment-owner segment))))))
+
+  (move-to-column
+   display-column)
+
+  (unless
+      (=
+       (current-column)
+       display-column)
+
+    (user-error
+     "Rendered Segment position is unavailable at column %s"
+     display-column)))
+
+
+(defun tne-goto-segment-edit-end (segment block-index)
+  "Move point to SEGMENT's rendered right edge in BLOCK-INDEX."
+  (tne-goto-segment-edit-column
+   segment
+   block-index
+   (tne-segment-edit-end-column segment)))
 
 (defun tne-start-segment-edit-session (segment block-index)
   "Begin right-edge entry for SEGMENT in BLOCK-INDEX."
@@ -380,11 +496,15 @@ Segment geometry uses the RE model's one-based column convention."
 
 (defun tne-goto-narrative-geometry
     (owner block-index display-column)
-  "Move to OWNER in BLOCK-INDEX at DISPLAY-COLUMN.
+  "Move to projected geometry for OWNER in BLOCK-INDEX.
 
-When the rendered row does not contain a real buffer position at the
-requested column, restore that location with a Projected Cursor rather
-than inserting spaces."
+DISPLAY-COLUMN identifies canonical entry geometry rather than ordinary
+renderer-owned buffer text.
+
+When the physical row ends before DISPLAY-COLUMN, use the projected
+cursor overlay.  When renderer-owned layout space already occupies the
+column, move point there but still record the location as projected
+canonical geometry."
   (tne-clear-projected-cursor)
 
   (goto-char
@@ -398,6 +518,7 @@ than inserting spaces."
       ('n1 0)
       ('n2 1)
       ('n3 2)
+
       (_
        (user-error
         "Invalid narrative owner: %s"
@@ -406,14 +527,21 @@ than inserting spaces."
   (move-to-column
    display-column)
 
-  (when
+  (if
       (<
        (current-column)
        display-column)
 
-    (end-of-line)
+      (progn
+        (end-of-line)
 
-    (tne-display-projected-cursor
+        (tne-display-projected-cursor
+         display-column))
+
+    ;; Point may physically occupy renderer-owned padding, but this is
+    ;; still projected canonical entry geometry rather than Segment text.
+    (setq
+     tne-projected-column
      display-column)))
 
 
@@ -507,17 +635,246 @@ Segment and restore the Projected Cursor at its former origin."
          segment-id)))))
 
 
+(defun tne-insert-character-in-segment-edit-session (character)
+  "Insert CHARACTER at point inside the active canonical Segment."
+  (let* ((segment
+          (tne-segment-edit-session-segment))
+
+         (block-index
+          (plist-get
+           tne-segment-edit-session
+           :block-index)))
+
+    (unless segment
+      (user-error
+       "The active Segment contains no canonical text"))
+
+    (unless
+        (tne-segment-edit-session-inside-p)
+
+      (user-error
+       "Point is outside the active Segment entry"))
+
+    (let* ((offset
+            (tne-segment-edit-offset segment))
+
+           (text
+            (tne-segment-text segment))
+
+           (current-end
+            (tne-segment-edit-end-column segment))
+
+           (right-limit
+            (tne-segment-entry-right-limit-column
+             segment
+             block-index)))
+
+      (if
+          (>
+           (1+ current-end)
+           right-limit)
+
+          (progn
+            (ding)
+
+            (message
+             "Segment cannot grow farther without crossing available territory")
+
+            nil)
+
+        (setf
+         (tne-segment-text segment)
+
+         (concat
+          (substring text 0 offset)
+          (char-to-string character)
+          (substring text offset)))
+
+        (tne-redraw)
+
+        (tne-goto-segment-edit-column
+         segment
+         block-index
+         (+
+          (tne-segment-edit-start-column segment)
+          offset
+          1))
+
+        segment))))
+
+
+(defun tne-delete-character-before-segment-point ()
+  "Delete the canonical Segment character immediately before point."
+  (let* ((segment
+          (tne-segment-edit-session-segment))
+
+         (block-index
+          (plist-get
+           tne-segment-edit-session
+           :block-index)))
+
+    (unless segment
+      (user-error
+       "The active Segment contains no canonical text"))
+
+    (unless
+        (tne-segment-edit-session-inside-p)
+
+      (user-error
+       "Point is outside the active Segment entry"))
+
+    (let* ((offset
+            (tne-segment-edit-offset segment))
+
+           (text
+            (tne-segment-text segment)))
+
+      (when (= offset 0)
+        (ding)
+
+        (user-error
+         "Beginning of Segment entry: nothing to delete"))
+
+      (if (= (length text) 1)
+          (let ((owner
+                 (tne-segment-owner segment))
+
+                (display-column
+                 (tne-segment-edit-start-column segment))
+
+                (segment-id
+                 (tne-segment-id segment)))
+
+            (tne-remove-segment-from-document
+             segment)
+
+            (setq
+             tne-segment-edit-session
+             (list
+              :segment-id nil
+              :owner owner
+              :block-index block-index
+              :display-column display-column))
+
+            (tne-redraw)
+
+            (tne-goto-narrative-geometry
+             owner
+             block-index
+             display-column)
+
+            (message
+             "Segment %s is empty; entry remains active"
+             segment-id))
+
+        (setf
+         (tne-segment-text segment)
+
+         (concat
+          (substring text 0 (1- offset))
+          (substring text offset)))
+
+        (tne-redraw)
+
+        (tne-goto-segment-edit-column
+         segment
+         block-index
+         (+
+          (tne-segment-edit-start-column segment)
+          offset
+          -1)))
+
+      segment)))
+
+
+(defun tne-segment-entry-left ()
+  "Move Left within an active Segment-entry session."
+  (interactive)
+
+  (cond
+   ((tne-segment-edit-session-empty-p)
+    (ding)
+
+    (message
+     "Beginning of empty Segment entry; press Escape to leave"))
+
+   (tne-segment-edit-session
+    (let ((segment
+           (tne-segment-edit-session-segment)))
+
+      (unless
+          (tne-segment-edit-session-inside-p)
+
+        (user-error
+         "Point is outside the active Segment entry"))
+
+      (if
+          (>
+           (current-column)
+           (tne-segment-edit-start-column segment))
+
+          (backward-char 1)
+
+        (ding)
+
+        (message
+         "Beginning of Segment entry; press Escape to leave"))))
+
+   (tne-projected-column
+    (ding)
+
+    (message
+     "Projected horizontal movement is unavailable outside Segment entry"))
+
+   (t
+    (backward-char 1))))
+
+
+(defun tne-segment-entry-right ()
+  "Move Right within an active Segment-entry session."
+  (interactive)
+
+  (cond
+   ((tne-segment-edit-session-empty-p)
+    (ding)
+
+    (message
+     "End of empty Segment entry; type or press Escape"))
+
+   (tne-segment-edit-session
+    (let ((segment
+           (tne-segment-edit-session-segment)))
+
+      (unless
+          (tne-segment-edit-session-inside-p)
+
+        (user-error
+         "Point is outside the active Segment entry"))
+
+      (if
+          (<
+           (current-column)
+           (tne-segment-edit-end-column segment))
+
+          (forward-char 1)
+
+        (ding)
+
+        (message
+         "End of Segment entry; type to extend it or press Escape"))))
+
+   (tne-projected-column
+    (ding)
+
+    (message
+     "Projected horizontal movement is unavailable outside Segment entry"))
+
+   (t
+    (forward-char 1))))
+
+
 (defun tne-backward-delete-char (n)
-  "Delete backward according to the current RE editing state.
-
-At projected empty geometry, Backspace is enclosed and cannot cross into
-another narrative or delete unrelated content.
-
-At the right edge of an active Segment-editing session, Backspace removes
-canonical Segment content.  Deleting the sole character removes the
-Segment and restores its preceding Projected Cursor.
-
-N is the numeric prefix argument."
+  "Delete backward according to the current RE editing state."
   (interactive "p")
 
   (unless (= n 1)
@@ -525,8 +882,6 @@ N is the numeric prefix argument."
      "Segment deletion currently accepts one character at a time"))
 
   (cond
-   ;; No canonical character exists yet.  Do not let ordinary Emacs
-   ;; Backspace cross the physical line boundary.
    (tne-projected-column
     (ding)
 
@@ -535,49 +890,30 @@ N is the numeric prefix argument."
          "Beginning of active Segment entry: nothing to delete"
        "Beginning of projected Segment: nothing to delete")))
 
-   ;; Canonical Segment construction exists and owns this deletion.
-   ((and
-     tne-segment-edit-session
-     (tne-segment-edit-session-at-point-p))
-
-    (tne-delete-last-segment-edit-character))
-
-   ;; A stale or departed session must not authorize deletion elsewhere.
    (tne-segment-edit-session
-    (tne-clear-segment-edit-session)
+    (tne-delete-character-before-segment-point))
 
-    (user-error
-     "Segment editing ended: Backspace was outside its right edge"))
-
-   ;; Unmodeled deletion on N2 or N3 is not permitted.
    ((memq
      (tne-current-narrative-owner)
      '(n2 n3))
 
     (user-error
-     "N2/N3 deletion requires an active Segment-editing session"))
+     "N2/N3 deletion requires an active Segment-entry session"))
 
-   ;; N1 retains ordinary text-editing behavior.
    (t
     (backward-delete-char-untabify n))))
 
 
 (defun tne-self-insert-command (n)
-  "Insert typed input according to the current RE editing state.
-
-Projected-space input creates a new canonical Segment.  Continued input
-at that Segment's right edge extends the same Segment.  Direct unmodeled
-typing on N2 or N3 is rejected.
-
-N is the numeric prefix argument supplied to `self-insert-command'."
+  "Insert typed input according to the current RE editing state."
   (interactive "p")
+
+  (unless (= n 1)
+    (user-error
+     "Segment insertion currently accepts one character at a time"))
 
   (cond
    (tne-projected-column
-    (unless (= n 1)
-      (user-error
-       "Projected insertion currently accepts one character at a time"))
-
     (unless (characterp last-command-event)
       (user-error
        "Projected insertion requires a character event"))
@@ -585,33 +921,22 @@ N is the numeric prefix argument supplied to `self-insert-command'."
     (tne-insert-first-character-at-projected-cursor
      last-command-event))
 
-   ((and
-     tne-segment-edit-session
-     (tne-segment-edit-session-at-point-p))
-
-    (unless (= n 1)
-      (user-error
-       "Segment insertion currently accepts one character at a time"))
-
+   (tne-segment-edit-session
     (unless (characterp last-command-event)
       (user-error
        "Segment insertion requires a character event"))
 
-    (tne-append-character-to-segment-edit-session
+    (tne-insert-character-in-segment-edit-session
      last-command-event))
 
    ((memq
      (tne-current-narrative-owner)
      '(n2 n3))
 
-    (tne-clear-segment-edit-session)
-
     (user-error
-     "N2/N3 insertion requires projected geometry or an active Segment edit"))
+     "N2/N3 insertion requires projected geometry or an active Segment entry"))
 
    (t
-    (tne-clear-segment-edit-session)
-
     (when (use-region-p)
       (delete-region
        (region-beginning)
@@ -1039,6 +1364,18 @@ installed without restarting Emacs."
    tne-mode-map
    [remap self-insert-command]
    #'tne-self-insert-command)
+
+  ;; Horizontal motion remains inside the active Segment-entry
+  ;; enclosure until Escape explicitly ends the session.
+  (define-key
+   tne-mode-map
+   (kbd "<left>")
+   #'tne-segment-entry-left)
+
+  (define-key
+   tne-mode-map
+   (kbd "<right>")
+   #'tne-segment-entry-right)
 
   ;; Backspace must operate on canonical Segment content rather than
   ;; crossing physical line boundaries or changing disposable layout.
@@ -4507,20 +4844,43 @@ recreate projected cursor geometry."
 (defun tne-redraw ()
   "Rebuild the visible TNE buffer from the current document model.
 
-N1 positions are preserved by canonical N1 offset.  Positions on N2 or
-N3 resolve to the end of that narrative's canonical rendered content.
-Projected cursor state is discarded because redraw creates a new
-presentation."
+N1 positions are preserved by canonical N1 offset.
+
+During an active Segment-entry session, an insertion position inside the
+Segment is preserved as an offset from that Segment's fixed Alpha 0.1
+starting column.
+
+Other N2 or N3 positions resolve to the end of that narrative's
+canonical rendered content.  Projected cursor state is discarded unless
+explicitly restored by the calling operation."
   (interactive)
 
   (unless tne-current-document
-    (user-error "No current TNE document"))
+    (user-error
+     "No current TNE document"))
 
   (let* ((inhibit-read-only t)
          (tne--rendering-p t)
 
          (saved-owner
           (tne-current-narrative-owner))
+
+         (saved-block-index
+          (tne-current-display-block-index))
+
+         (saved-session-segment
+          (and
+           tne-segment-edit-session
+           (tne-segment-edit-session-segment)))
+
+         (saved-session-offset
+          (when
+              (and
+               saved-session-segment
+               (tne-segment-edit-session-inside-p))
+
+            (tne-segment-edit-offset
+             saved-session-segment)))
 
          (n1-length
           (length
@@ -4536,9 +4896,11 @@ presentation."
     ;; The old overlay belongs to the old projection.
     (tne-clear-projected-cursor)
 
-    (setq tne-layout-records nil)
+    (setq
+     tne-layout-records
+     nil)
 
-    ;; Redrawing is a projection of model state.  It must not create
+    ;; Redrawing is a projection of model state. It must not create
     ;; additional user-visible undo steps.
     (let ((buffer-undo-list t))
       (erase-buffer)
@@ -4546,13 +4908,43 @@ presentation."
       (tne-render-document
        tne-current-document))
 
-    (if (eq saved-owner 'n1)
-        (goto-char
-         (tne-n1-offset-to-buffer-position
-          saved-n1-offset))
+    (cond
+     ((eq saved-owner 'n1)
+      (goto-char
+       (tne-n1-offset-to-buffer-position
+        saved-n1-offset)))
 
+     ((and
+       saved-session-segment
+       saved-session-offset)
+
+      (let ((restored-segment
+             (tne-find-segment-by-id
+              (tne-segment-id
+               saved-session-segment))))
+
+        (if restored-segment
+            (tne-goto-segment-edit-column
+             restored-segment
+             saved-block-index
+             (+
+              (tne-segment-edit-start-column
+               restored-segment)
+
+              (min
+               saved-session-offset
+
+               (string-width
+                (tne-segment-text
+                 restored-segment)))))
+
+          (tne-goto-narrative-row-end
+           saved-owner))))
+
+     (t
       (tne-goto-narrative-row-end
-       saved-owner))))
+       saved-owner)))))
+
 
 (defun tne-delete-segment (n)
   (let ((c (read-number "Delete segment at column: ")))
@@ -4893,6 +5285,9 @@ offset and whose cdr is the zero-based ending offset in AFTER."
      :effective-column
      (tne-current-effective-column)
 
+     :projected-column
+     tne-projected-column
+
      :projected-p
      (and tne-projected-column t)
 
@@ -5003,7 +5398,12 @@ offset and whose cdr is the zero-based ending offset in AFTER."
 
 
 (defun tne-restore-history-location (snapshot)
-  "Restore point or projected cursor location from SNAPSHOT."
+  "Restore point or projected canonical geometry from SNAPSHOT.
+
+Projected canonical geometry is restored even when renderer-owned
+padding provides a physical buffer position at the same display column.
+A projected cursor overlay is required only when the physical row ends
+before the requested column."
   (let ((owner
          (plist-get snapshot :owner))
 
@@ -5015,7 +5415,10 @@ offset and whose cdr is the zero-based ending offset in AFTER."
         (column
          (or
           (plist-get snapshot :effective-column)
-          0)))
+          0))
+
+        (projected-column
+         (plist-get snapshot :projected-column)))
 
     (tne-clear-projected-cursor)
 
@@ -5028,25 +5431,43 @@ offset and whose cdr is the zero-based ending offset in AFTER."
           0))))
 
       ((or 'n2 'n3)
-       (goto-char (point-min))
+       (goto-char
+        (point-min))
 
        (forward-line
         (+
          (* 4 block-index)
+
          (if (eq owner 'n2)
              1
            2)))
 
-       (move-to-column column)
+       (move-to-column
+        column)
 
-       (when (< (current-column) column)
+       (cond
+        ;; The target lies beyond the physical row end.  Restore both
+        ;; the projected designation and its visible cursor overlay.
+        ((<
+          (current-column)
+          column)
+
          (end-of-line)
 
          (tne-display-projected-cursor
-          column)))
+          column))
+
+        ;; The target is physically reachable only because disposable
+        ;; renderer-owned layout occupies the column.  Preserve its
+        ;; canonical projected designation without creating an overlay.
+        (projected-column
+         (setq
+          tne-projected-column
+          projected-column))))
 
       (_
-       (goto-char (point-min))))))
+       (goto-char
+        (point-min))))))
 
 
 (defun tne-restore-model-snapshot (snapshot)

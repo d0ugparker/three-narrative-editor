@@ -125,3 +125,32 @@ Questions to resolve before implementation:
 
 -------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------
+
+## Deferred Segment-Origin Editing
+
+Beta or a later release shall permit an active Segment's starting column
+to change without changing its identity.
+
+Required future behavior includes:
+
+- deleting backward through all existing Segment characters,
+- continuing through projected empty geometry where permitted,
+- preventing movement across a layout separator or neighboring Segment,
+- typing new content at a different permitted position,
+- and updating the same Segment's starting column to the new content
+  origin.
+
+Example:
+
+A Segment containing `ABXC` may be emptied. If the entry position then
+moves four available projected columns to the right and `Y` is typed,
+the same Segment begins at the new `Y` position.
+
+The Segment identity remains stable while its geometry changes.
+
+The permitted movement territory must account for neighboring Segments
+and the three display columns required by each `" | "` separator.
+
+-------------------------------------------------------------------------------

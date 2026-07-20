@@ -207,3 +207,43 @@ projected origin so that subsequent typing may resume naturally.
 Escape ends the entry.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Segment-Entry Enclosure
+
+The insertion-position territory owned by an active Segment-entry
+session.
+
+Within the enclosure, ordinary Left, Right, insertion, and Backspace
+behavior applies to the same canonical Segment.
+
+Movement or deletion does not cross into layout, separators, neighboring
+Segments, or another narrative.
+
+-------------------------------------------------------------------------------
+
+## Layout-Owned Separator
+
+The visible three-character string:
+
+    " | "
+
+placed between adjacent Segments on the same narrative line.
+
+It is computed presentation and belongs to neither Segment's canonical
+text.
+
+Its presence follows current adjacency rather than historical placement.
+
+-------------------------------------------------------------------------------
+
+## Projected Geometry on Rendered Padding
+
+A canonically empty insertion location that coincides with a physical
+buffer column containing disposable renderer-owned spacing.
+
+The physical point may occupy the column while
+`tne-projected-column` preserves its canonical projected status.
+
+-------------------------------------------------------------------------------

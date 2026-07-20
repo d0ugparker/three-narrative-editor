@@ -150,3 +150,36 @@ Confirmed behavior:
 - and Escape explicitly ends the entry session.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260719 — Fixed-Origin Segment Editing and Separator Territory
+
+Implemented and verified ordinary editing within an active Alpha 0.1
+Segment-entry session.
+
+Verified:
+
+- Left and Right movement through all Segment insertion positions,
+- insertion at the beginning, middle, and end,
+- Backspace at the beginning, middle, and end,
+- deletion to an empty active entry,
+- resumption from the same projected origin,
+- stable SID while the Segment exists,
+- fixed Alpha 0.1 starting column,
+- redraw preserving interior insertion position,
+- Escape ending the session,
+- session-level undo and redo,
+- one layout-owned `" | "` separator between adjacent Segments,
+- growth stopping before separator territory,
+- separator persistence while adjacency remains,
+- separator removal when adjacency ends,
+- and history restoration of projected geometry over renderer-owned
+  padding.
+
+Modified implementation files:
+
+- `tne-mode.el`
+- `tne-render.el`
+
+-------------------------------------------------------------------------------

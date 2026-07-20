@@ -128,3 +128,20 @@ result directly comparable with the expected result supplied in the
 test instructions.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## Test Coordinates Must Respect Available Territory
+
+A Segment-editing test must verify that its planned text can fit between
+the proposed starting column and the applicable rightward limit.
+
+The rightward limit may be established by:
+
+- the corresponding N1 narrative extent, or
+- reserved separator territory before the next Segment.
+
+Expected text shall not assume more character positions than the test
+geometry permits.
+
+-------------------------------------------------------------------------------

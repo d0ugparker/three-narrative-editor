@@ -991,3 +991,84 @@ interaction preserves the user's unfinished act of entry.
 This separates object lifecycle from interaction lifecycle.
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260718 — Segment Identity and Mutable Geometry
+
+Observation:
+
+Segment identity and Segment geometry are distinct.
+
+A Segment may remain the same recognized object even when later editing
+changes where its canonical content begins.
+
+Alpha 0.1 keeps the starting column fixed during entry.
+
+Beta and later versions must allow the starting column to move through
+available projected geometry while remaining bounded by neighboring
+Segments and layout separators.
+
+
+Observation:
+
+The visible string `" | "` separates Segments but belongs to neither
+Segment.
+
+Its existence is determined by Segment adjacency:
+
+- no separator for one Segment,
+- one separator between two Segments,
+- and two separators around a Segment inserted between two others.
+
+Result:
+
+Separators belong to computed layout rather than canonical Segment text.
+
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+
+## 260719 — Editing Territory Is Not Current Text Width
+
+Observation:
+
+A Segment's current character width does not define its complete editing
+territory.
+
+During entry, its canonical text may expand and contract within territory
+bounded by the N1 narrative extent and neighboring Segment geometry.
+
+Result:
+
+The Segment's present right edge is mutable, while its available
+territory is computed from surrounding representation and layout rules.
+
+
+Observation:
+
+A separator is produced by adjacency, not stored history.
+
+When two Segments become adjacent, `" | "` appears. When one is removed,
+the separator disappears.
+
+Result:
+
+The separator is a projection of current Segment relationships in
+display geometry, not canonical Segment content.
+
+
+Observation:
+
+Projected canonical geometry and physical buffer reachability are
+different facts.
+
+Renderer-owned padding may make a column physically reachable without
+making it canonical narrative content.
+
+Result:
+
+Projected status must be preserved independently from whether Emacs can
+place physical point at the same display column.
+
+-------------------------------------------------------------------------------
